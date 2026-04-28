@@ -1,0 +1,771 @@
+################################################################################
+#  DIGITAL ATELIER — COMPLETE WORKING PROMPT v5.0                             #
+#  End-to-End · Every Screen · Full App Flow                                  #
+#  Apparel · Jewellery · Accessories · Products                                #
+################################################################################
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 1 — HOME / HUB SELECTION
+════════════════════════════════════════════════════════════════════════════════
+
+User lands on home screen and selects a Creative Hub.
+
+TRIGGER: User taps one of:
+  → [APPAREL]     → Route to Screen 2 (Segment Selection)
+  → [JEWELLERY]   → Route to Screen 2J (Jewellery Genre)
+  → [ACCESSORIES] → Route to Screen 2A (Accessory Type)
+  → [PRODUCTS]    → Route to Screen 2P (Product Family)
+
+NO AI EXECUTION AT THIS SCREEN.
+State: IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 2 — SELECT SEGMENT  (Apparel only)
+════════════════════════════════════════════════════════════════════════════════
+
+User selects target audience segment.
+
+TRIGGER: User taps one of:
+  → [LADIES] → Route to Screen 3 with SEGMENT = Ladies
+  → [GENTS]  → Route to Screen 3 with SEGMENT = Gents
+  → [KIDS]   → Route to Screen 3 with SEGMENT = Kids
+
+NO AI EXECUTION AT THIS SCREEN.
+State: IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 3 — SELECT WEAR TYPE  (Apparel only)
+════════════════════════════════════════════════════════════════════════════════
+
+User selects wear type for the selected segment.
+
+TRIGGER: User taps one of:
+  → [ETHNIC WEAR]  — Saree · Kurti · Kurta Set · Salwar Suit ·
+                     Lehenga · Dupatta Set · Blouse · Sherwani
+  → [WESTERN WEAR] — Dress · Top · Shirt · Skirt · Co-ord Set ·
+                     Blazer · Jacket · Trousers · T-Shirt
+  → [CUSTOM]       — Open prompt / unsupported type
+
+NO AI EXECUTION AT THIS SCREEN.
+State: IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 4 — SELECT PRODUCT TYPE
+════════════════════════════════════════════════════════════════════════════════
+
+User selects the specific product type from pill buttons.
+
+APPAREL ETHNIC WEAR OPTIONS:
+  Saree · Kurti · Kurta Set · Salwar Suit · Lehenga · Dupatta Set · Blouse · Other
+
+APPAREL WESTERN WEAR OPTIONS:
+  Dress · Top · Shirt · Skirt · Co-ord Set · Blazer · Jacket · Trousers · T-Shirt · Other
+
+JEWELLERY OPTIONS:
+  Bridal · Fashion · Traditional / Vintage · Daily Wear / Minimal · Custom
+
+ACCESSORIES OPTIONS:
+  Bags · Footwear · Watches · Eyewear · Belts · Scarves / Small Accessories · Custom
+
+PRODUCTS OPTIONS:
+  Home Decor · Beauty / Cosmetics · Handicrafts · Packaged Products · Gifts / Lifestyle
+
+TRIGGER: User selects product type pill → taps [CONTINUE]
+NO AI EXECUTION AT THIS SCREEN.
+State: IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 5 — UPLOAD PRODUCT + CONFIGURE
+════════════════════════════════════════════════════════════════════════════════
+
+User uploads product image and sets all configuration options.
+
+INPUTS COLLECTED ON THIS SCREEN:
+  ① PRODUCT IMAGE   → User uploads via drag-drop · Take Photo · Upload button
+  ② SELECT MODEL    → User picks from model grid (MODEL_REF)
+  ③ BACKGROUND      → White Studio · Premium Studio · Saree Festival · Outdoor · Modern Office
+  ④ OUTPUT STYLE    → Catalog · Premium · Social Media · Lifestyle
+  ⑤ AI NOTES        → Optional free-text director notes
+
+VALIDATION BEFORE [GENERATE PRIME IMAGE]:
+  ✓ PRODUCT_IMAGE uploaded and valid
+  ✓ MODEL_REF selected (required for Apparel/Jewellery worn shots)
+  ✓ BACKGROUND selected
+  ✓ OUTPUT_STYLE selected
+  IF any required input missing → show error · DO NOT proceed
+
+TRIGGER: User taps [GENERATE PRIME IMAGE]
+  → ACTION: GENERATE_IMAGES (single prime image)
+  → State advances to: IMAGES_GENERATED
+
+════════════════════════════════════════════════════════
+PRIME IMAGE GENERATION PROMPT — ACTIVATE ON TRIGGER
+════════════════════════════════════════════════════════
+
+[HUB: @HUB] [SEGMENT: @SEGMENT] [WEAR TYPE: @WEAR_TYPE] [PRODUCT TYPE: @PRODUCT_TYPE]
+
+UNIVERSAL PRODUCT-TYPE OUTPUT ISOLATION (MANDATORY)
+Final output MUST strictly match the selected input category/type.
+No deviation. No mixing. No substitution. No AI-assumed additions.
+
+── PRODUCT TYPE ISOLATION ──────────────────────────────────────────────────
+
+  Saree       → Output ONLY Saree (blouse + petticoat support)
+                ❌ No lehenga / kurti / gown / fusion
+  Lehenga     → ONLY Lehenga set (lehenga + choli + dupatta)
+                ❌ No saree drape / gown mix
+  Kurti       → ONLY Kurti (neutral bottom if needed)
+                ❌ No saree / lehenga styling
+  Kurta Set   → ONLY full set (kurta + bottom + dupatta if present)
+                ❌ No unrelated garment mix
+  Salwar Suit → ONLY full set (kurta + bottom + dupatta if present)
+                ❌ No unrelated garment mix
+  Dupatta Set → ONLY dupatta with neutral base garment
+                ❌ No full bridal styling unless in source
+  Blouse      → ONLY blouse-focused output
+                ❌ No full saree/lehenga unless in PRODUCT_IMAGE
+  Sherwani    → ONLY that ethnic menswear structure
+                ❌ No casual/western merge
+  Kids        → ONLY selected kids category · age-appropriate
+                ❌ No adult styling
+  Western     → ONLY selected western type
+                ❌ No ethnic blending
+
+── GARMENT EXTRACTION ──────────────────────────────────────────────────────
+
+SOURCE OF TRUTH: PRODUCT_IMAGE. Zero deviation permitted.
+
+COLOUR       Exact hex-level match. No brightening · darkening · saturation shift.
+             Render faithfully under output lighting — never recolour.
+PRINT        All-over · block · digital · woven patterns at full fidelity.
+             Scale correctly to body. No tiling errors · no distortion.
+EMBROIDERY   Zari · resham · mirror · cutdana · sequin · gota patti.
+             Render every element individually. No averaging. No blur.
+BORDERS      Exact width · motif · colour as in source. Pallu and hem borders match.
+FABRIC ID    Silk→high sheen·stiff | Chiffon→translucent·floaty | Cotton→matte·soft |
+             Georgette→medium flow | Net/Organza→sheer·stiff | Velvet→deep pile·heavy |
+             Crepe→matte·heavy·structured | Tissue→metallic sheen·semi-stiff
+CUT          Neckline · sleeve length · hem length · silhouette exactly from source.
+
+── DRAPING RULES ───────────────────────────────────────────────────────────
+
+SAREE:
+  Nivi drape (default unless source shows otherwise).
+  Petticoat neatly tucked at waist.
+  5–7 uniform front pleats, centred, sharp folds.
+  Pallu over left shoulder, natural diagonal fall, full design visible.
+  Blouse fitted front and back — no pull, no gap, no stretch.
+
+LEHENGA:
+  Full circular flare · even ankle-length hem all around.
+  Choli fitted bodice, neckline exactly from source.
+  Dupatta over both shoulders or one shoulder as in source.
+
+KURTA SET / SALWAR SUIT:
+  Kurta straight or A-line per source.
+  Churidar gathers at ankle or palazzo wide and even.
+  Dupatta diagonal chest drape or over both shoulders.
+
+KURTI:
+  Show with neutral bottom (white or black)
+  unless source shows specific paired bottom.
+
+DUPATTA SET:
+  Draped naturally over both shoulders or one shoulder.
+  Full length visible. Print/embroidery unobstructed.
+
+BLOUSE:
+  Neckline · sleeve · back design all visible.
+  Show with plain petticoat unless source shows full saree.
+
+SHERWANI:
+  All buttons fastened · straight placket.
+  Even knee-length hem · Churidar fitted through leg, clean ankle gathers.
+
+GOWN / PARTYWEAR:
+  Train fully visible and in frame if present.
+  Silhouette A-line / mermaid / ball gown exactly per source.
+  Maximum garment drama — no flattening of volume or structure.
+
+WESTERN FIT:
+  Structured or relaxed per source fabric weight.
+  Natural body-conforming silhouette.
+  Seams and construction lines from source reproduced exactly.
+
+── CLOTH PHYSICS ───────────────────────────────────────────────────────────
+
+Gravity-driven drape · correct tension at shoulder, waist, and hip.
+Seams and stitching reproduced from source.
+Sheer fabrics → correct opacity · background visible only where physically accurate.
+Opaque fabrics → zero background bleed-through.
+No floating · no clipping · no misalignment at any seam.
+Multi-layer contact shadows and ambient occlusion applied throughout.
+
+── MODEL DIRECTIVE ──────────────────────────────────────────────────────────
+
+IF MODE = Virtual Try-On:
+  TASK: Virtual Try-On. Redress subject in MODEL_REF with clothing from PRODUCT_IMAGE.
+  Replace ONLY the clothing. Strictly preserve subject identity.
+
+IF MODE = AI Studio:
+  Apply garment to MODEL_REF only. No other model.
+
+IDENTITY LOCK — ABSOLUTE. NON-NEGOTIABLE.
+Face geometry · pores · freckles · moles · micro-details → 100% preserved.
+Skin tone + undertone → exact match to MODEL_REF. No shift.
+Body shape · limb volume · proportions · posture → unchanged.
+Hair colour · length · texture · style → unchanged.
+Eye colour · shape · position → unchanged.
+Expression → unchanged unless explicitly stated in AI_NOTES.
+No slimming · no reshaping · no enhancement · no beautification.
+Identity must be pixel-consistent across all views and all video frames.
+
+Correct draping physics for identified fabric weight.
+No gaps · no pulls · no warping · no misalignment.
+
+IF SEGMENT = Kids:
+  Scale all proportions to child body.
+  Age-appropriate styling only. No adult proportions.
+
+── BACKGROUND ───────────────────────────────────────────────────────────────
+
+LIGHTING RULE: Light direction · colour temperature · intensity on subject
+MUST match background exactly.
+
+White Studio   → Pure white seamless sweep · soft-box front light + fill ·
+                 faint natural floor shadow.
+Premium Studio → Dark charcoal textured wall · Rembrandt or split lighting ·
+                 warm gold or cool silver rim light · rich deep shadow.
+Saree Festival → Decorated mandap or temple corridor · marigold garlands ·
+                 diyas · warm amber light.
+Outdoor        → Garden or heritage monument · natural directional sunlight ·
+                 soft fill · accurate cast shadows.
+Modern Office  → Contemporary interior · large windows · diffused daylight ·
+                 neutral clean tones.
+
+── OUTPUT STYLE ─────────────────────────────────────────────────────────────
+
+Catalog      → Full body portrait 3:4 · centred · neutral expression ·
+               hands relaxed · no props. Marketplace-standard.
+Premium      → Editorial · off-centre · 3/4 body · dramatic lighting ·
+               confident gaze · rich colour grade. Luxury feel.
+Social Media → Vertical 9:16 · waist-up · vibrant · high energy.
+               Optimised for Instagram / Reels.
+Lifestyle    → Environmental portrait 3:4 or 4:5 · candid feel ·
+               warm atmospheric light · airy edit.
+
+── AI DIRECTOR NOTES ────────────────────────────────────────────────────────
+
+IF AI_NOTES provided: Apply precisely.
+AI_NOTES never override Identity Lock or Garment Extraction Lock.
+
+── QUALITY GATES ────────────────────────────────────────────────────────────
+
+ALL MUST PASS:
+✓ Output matches selected category/type exactly
+✓ No cross-category elements present
+✓ Only items visible in PRODUCT_IMAGE are rendered
+✓ Item colour exact match to source — zero drift
+✓ All surface detail reproduced — zero AI averaging
+✓ Model identity 100% preserved from MODEL_REF
+✓ Fabric physics correct for identified type
+✓ Background and subject lighting consistent
+✓ Correct composition for OUTPUT_STYLE
+✓ Single image — no collage · no watermark · no text overlay
+✓ Resolution minimum 1024×1024 · target 2048×2048
+✓ Marketplace-safe: Meesho · Myntra · Amazon · Ajio · Nykaa ready
+REJECT AND REGENERATE if any gate fails.
+
+── NEGATIVE PROMPT ──────────────────────────────────────────────────────────
+
+--no category mixing, no hybrid/fusion unless in PRODUCT_IMAGE,
+no AI-added extra items, no assumption-based styling,
+no replacement of product type, no face change, no skin tone shift,
+no body distortion, no slimming, no reshaping, no body enhancement,
+no blur, no low resolution, no waxy skin, no plastic skin,
+no broken anatomy, no extra limbs, no missing limbs,
+no fabric warping, no texture stretching, no pattern scale error,
+no tile distortion, no embroidery averaging, no garment colour drift,
+no generic AI garment, no floating fabric, no clipping, no blouse gap,
+no lighting mismatch, no background bleed through opaque fabric,
+no watermark, no collage, no text overlay, no UI elements,
+no identity drift, no over-smoothing, no HDR artefacts,
+no chromatic aberration, no label text distortion
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 6 — GENERATED RESULT  (Prime Image Review)
+════════════════════════════════════════════════════════════════════════════════
+
+System displays generated prime image.
+User has three options:
+
+  [REGENERATE]       → Re-trigger GENERATE_IMAGES with same inputs.
+                       State remains: IMAGES_GENERATED
+                       New image generated fresh — no cache.
+
+  [EDIT PROMPT]      → User modifies AI_NOTES or configuration.
+                       Re-trigger GENERATE_IMAGES with updated inputs.
+                       State remains: IMAGES_GENERATED
+
+  [APPROVE & CONTINUE] → User approves prime image.
+                         ACTION: APPROVE_AND_CONTINUE
+                         Prime image locked.
+                         State advances to: APPROVED
+                         Route to: Screen 7 (Output Views)
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 7 — SELECT OUTPUT VIEWS
+════════════════════════════════════════════════════════════════════════════════
+
+User selects which views to generate for the high-fashion catalog.
+Multi-select. At least one view must be selected.
+
+VIEW OPTIONS:
+  ☐ Front View   → Model facing camera directly · full body 3:4 ·
+                   garment front fully visible · centred composition.
+  ☐ Left View    → Model turned 45–90° left · left side fully visible ·
+                   natural shoulder posture.
+  ☐ Right View   → Model turned 45–90° right · right side fully visible ·
+                   natural shoulder posture.
+  ☐ Close-up     → Waist-up or bust-up · face and upper garment sharp ·
+                   background softly blurred.
+  ☐ Detail Shot  → Extreme macro on hero detail — embroidery · border ·
+                   stone · hardware · label · texture. Sharp throughout.
+  ☐ Custom       → Apply as specified in AI_NOTES.
+
+VALIDATION BEFORE [GENERATE OUTPUTS]:
+  ✓ At least one OUTPUT_VIEW selected
+  IF none selected → show error · DO NOT proceed
+
+TRIGGER: User taps [GENERATE OUTPUTS]
+  → ACTION: GENERATE_IMAGES (multi-view)
+  → One image generated per selected view
+  → State: IMAGES_GENERATED (multi-view)
+
+════════════════════════════════════════════════════════
+MULTI-VIEW GENERATION PROMPT — ACTIVATE ON TRIGGER
+════════════════════════════════════════════════════════
+
+[HUB: @HUB] [SEGMENT: @SEGMENT] [WEAR TYPE: @WEAR_TYPE] [PRODUCT TYPE: @PRODUCT_TYPE]
+[VIEWS: @OUTPUT_VIEWS]
+
+Apply full pipeline from Screen 5 prompt above.
+Additionally apply per-view directives:
+
+OUTPUT VIEWS — Generate ONLY selected views: [@OUTPUT_VIEWS]
+Each view must be independently generated. No reuse across views.
+
+Front View   → Model facing camera directly · full body 3:4 ·
+               garment front fully visible · centred composition.
+Left View    → Model turned 45–90° to the left ·
+               left side of garment fully visible · natural shoulder posture.
+Right View   → Model turned 45–90° to the right ·
+               right side of garment fully visible · natural shoulder posture.
+Close-up     → Waist-up or bust-up frame ·
+               face and upper garment in sharp focus · background softly blurred.
+Detail Shot  → Extreme macro on hero detail — embroidery · border ·
+               stone setting · hardware · label · texture.
+               No full body. Sharp focus throughout.
+Custom       → Apply exactly as specified in AI_NOTES.
+               Maintain identity lock and extraction lock.
+
+All other pipeline rules from Screen 5 apply in full.
+Quality Gates and Negative Prompt apply to every view.
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 8 — RESULTS PAGE  (Multi-View Review)
+════════════════════════════════════════════════════════════════════════════════
+
+System displays all generated view images.
+User has four options:
+
+  [MORE ANGLES]      → Returns to Screen 7 (Output Views).
+                       User selects additional views.
+                       Re-triggers GENERATE_IMAGES for new views only.
+                       Previously approved views preserved.
+
+  [CREATE VIDEO]     → User proceeds to video pipeline.
+                       Route to: Screen 9 (Video Style Selection)
+                       ACTION: APPROVE_AND_CONTINUE
+                       All generated images locked as approved.
+                       State advances to: APPROVED
+
+  [DOWNLOAD ALL]     → Downloads all generated images as ZIP.
+                       No AI execution.
+
+  [CREATE NEW PROJECT] → Resets entire pipeline.
+                         State resets to: IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 9 — SELECT VIDEO STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+User selects video animation style.
+User may optionally add AI Custom note.
+
+VIDEO STYLE OPTIONS:
+  ○ Straight Walk    → Model walks directly toward camera · natural confident
+                       stride · garment and fabric dynamics captured · 3–5 sec ·
+                       camera static at eye level.
+  ○ Slow Turn        → Model performs slow 180° or 360° turn · all garment sides
+                       revealed · graceful movement · fabric flow captured ·
+                       seamless loop preferred.
+  ○ Elegant Reveal   → Model enters from one side · stops at centre ·
+                       subtle pose to reveal hero details · slow push-in at end ·
+                       cinematic and aspirational.
+  ○ Fabric Flow      → Focus on fabric movement · slow spin or gentle sway ·
+                       dupatta · pallu · lehenga flare in fluid motion ·
+                       extreme slow motion on fabric dynamics ·
+                       warm golden hour or atmospheric lighting.
+
+EXTENDED STYLES:
+  ○ Cinematic        → Slow dolly push-in · shallow DOF · film grain ·
+                       warm colour grade · 24fps feel.
+  ○ Reel             → Dynamic 9:16 · fast cuts · vibrant · Instagram/TikTok.
+  ○ Slow Motion      → 120fps at 24fps output · fabric · hair · jewellery detail.
+  ○ 360 Turntable    → Full 360° rotation · consistent lighting · seamless loop.
+  ○ Zoom Focus       → Wide to macro zoom on hero product detail.
+
+AI CUSTOM (Optional):
+  User enters free-text note to refine video motion, lighting, or focus.
+
+  [USE PROMPT]       → Applies user's custom video prompt as AI_NOTES for video.
+
+VALIDATION BEFORE [GENERATE VIDEO]:
+  ✓ VIDEO_STYLE selected
+  ✓ State must be APPROVED
+  ✓ Approved images must exist
+  IF any missing → show error · DO NOT proceed
+
+TRIGGER: User taps [GENERATE VIDEO]
+  → ACTION: GENERATE_VIDEO
+  → State advances to: VIDEO_GENERATED
+
+════════════════════════════════════════════════════════
+VIDEO GENERATION PROMPT — ACTIVATE ON TRIGGER
+════════════════════════════════════════════════════════
+
+[HUB: @HUB] [MODE: VIDEO GENERATION] [VIDEO_STYLE: @VIDEO_STYLE]
+
+SOURCE IMAGES (APPROVED — LOCKED):
+  Use ONLY the approved images from APPROVE_AND_CONTINUE.
+  No regeneration of product, model, background, or identity.
+
+── VIDEO MOTION DIRECTIVE ───────────────────────────────────────────────────
+
+STRAIGHT WALK:
+  Model walks directly toward camera in a straight line.
+  Natural confident stride. Garment movement and drape captured in full.
+  Fabric dynamics visible throughout. 3–5 second clip.
+  Camera remains static at eye level. No zoom.
+
+SLOW TURN:
+  Model performs a slow 180° or 360° turn on axis.
+  All sides of garment revealed — front · left · back · right.
+  Movement graceful and unhurried. Fabric flow and drape captured.
+  Consistent studio lighting throughout rotation. Seamless loop preferred.
+
+ELEGANT REVEAL:
+  Model enters frame from one side. Comes to a graceful stop at centre.
+  Subtle pose adjustment to reveal garment hero details.
+  Slow push-in on face and upper body at end.
+  Cinematic and aspirational tone.
+
+FABRIC FLOW:
+  Camera focuses on fabric movement.
+  Model performs a slow spin or gentle sway.
+  Dupatta · pallu · lehenga flare · or fabric hem in fluid motion.
+  Extreme slow motion on fabric dynamics.
+  Warm atmospheric lighting — golden hour or soft studio.
+
+CINEMATIC:
+  Slow dolly push-in. Shallow depth of field. Film grain overlay.
+  Warm colour grade. 24fps feel.
+  Dramatic reveal from environment wide shot to garment/product close detail.
+
+REEL:
+  Dynamic 9:16 vertical. Fast cuts every 1–2 seconds.
+  Upbeat energy. Vibrant colour. Motion blur on transitions.
+  Optimised for Instagram Reels / TikTok.
+
+SLOW MOTION:
+  120fps playback at 24fps output.
+  Fabric movement · hair flow · jewellery glint captured in detail.
+  Smooth, graceful. No judder.
+
+360 TURNTABLE:
+  Product or model rotates full 360° on axis.
+  Consistent studio lighting throughout rotation.
+  Seamless loop. No background change. No lighting shift.
+
+ZOOM FOCUS:
+  Start wide (full body / full product).
+  Slow zoom to hero detail — embroidery · stone · hardware · label.
+  Sharp focus maintained throughout.
+
+── IDENTITY IN VIDEO ────────────────────────────────────────────────────────
+
+IDENTITY LOCK — ABSOLUTE. NON-NEGOTIABLE.
+Face geometry · pores · freckles · moles · micro-details → 100% preserved.
+Skin tone + undertone → exact match to MODEL_REF. No shift.
+Body shape · limb volume · proportions · posture → unchanged.
+Hair colour · length · texture · style → unchanged.
+Eye colour · shape · position → unchanged.
+No slimming · no reshaping · no enhancement · no beautification.
+Identity must be pixel-consistent across every frame of the video.
+
+── TEMPORAL STABILITY ───────────────────────────────────────────────────────
+
+Every frame must be visually consistent with the previous.
+No flicker · no pop · no identity drift · no lighting change · no colour shift.
+Fabric physics must be continuous and physically plausible in motion.
+Motion must feel natural for the subject type and garment weight.
+
+── ASPECT RATIO ─────────────────────────────────────────────────────────────
+
+Reel           → 9:16 vertical · optimised for mobile.
+360 Turntable  → 1:1 square or 4:5 · product centred throughout.
+All others     → 9:16 vertical (default) or 4:5 · MP4 · 4K.
+
+── AI CUSTOM NOTE ───────────────────────────────────────────────────────────
+
+IF AI_NOTES provided for video: Apply precisely to motion and framing.
+AI_NOTES never override Identity Lock or temporal stability.
+
+── VIDEO QUALITY GATES ──────────────────────────────────────────────────────
+
+ALL MUST PASS:
+✓ Motion style matches selected VIDEO_STYLE exactly
+✓ Model identity consistent across every frame
+✓ No temporal flicker · no frame instability · no ghosting
+✓ No identity drift between frames
+✓ Lighting and colour grade consistent throughout
+✓ Fabric/material physics maintained in motion
+✓ No artifacts · no frame drops · no morphing
+✓ Single AI-generated video — no static demo or placeholder
+✓ MP4 · 4K · correct aspect ratio
+REJECT AND REGENERATE if any gate fails.
+
+── VIDEO NEGATIVE PROMPT ────────────────────────────────────────────────────
+
+--no flickering, no frame instability, no temporal artifacts,
+no identity drift across frames, no ghosting, no morphing,
+no static demo video, no slideshow, no cached content,
+no watermark, no text overlay, no UI elements,
+no lighting changes between frames, no colour shift across frames,
+no fabric texture loss in motion, no background pop or change
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 10 — VIDEO RESULT
+════════════════════════════════════════════════════════════════════════════════
+
+System displays generated video (MP4 · 4K).
+User has two options:
+
+  [APPROVE & CONTINUE] → Video approved. Route to Screen 11 (Final Results).
+                         State: VIDEO_GENERATED → FINAL
+
+  [REGENERATE]         → Re-trigger GENERATE_VIDEO with same inputs.
+                         State remains: APPROVED
+                         New video generated fresh — no cache.
+
+════════════════════════════════════════════════════════════════════════════════
+SCREEN 11 — FINAL RESULTS
+════════════════════════════════════════════════════════════════════════════════
+
+System displays complete project output:
+  • All generated images organised by view (Front · Left · Right · Close-up · Detail)
+  • Generated video with play button
+  • Project summary
+
+User options:
+
+  [DOWNLOAD ALL]       → Downloads all images + video as ZIP.
+                         No AI execution.
+
+  [CREATE NEW PROJECT] → Resets entire pipeline state to IDLE.
+                         All session data cleared.
+                         User returns to Screen 1.
+
+NO AI EXECUTION AT THIS SCREEN.
+State: FINAL / COMPLETE
+
+════════════════════════════════════════════════════════════════════════════════
+COMPLETE PIPELINE STATE MACHINE
+════════════════════════════════════════════════════════════════════════════════
+
+  IDLE
+    ↓ User selects Hub → Segment → Wear Type → Product Type
+    ↓ User uploads Product Image, selects Model, Background, Style, Views
+    ↓ User taps [GENERATE PRIME IMAGE]
+  IMAGES_GENERATED (prime)
+    ↓ User reviews → [Regenerate] loops back
+    ↓ User taps [APPROVE & CONTINUE]
+  APPROVED (prime)
+    ↓ User selects Output Views → taps [GENERATE OUTPUTS]
+  IMAGES_GENERATED (multi-view)
+    ↓ User reviews all views
+    ↓ [More Angles] → loops back to view selection
+    ↓ User taps [CREATE VIDEO]
+  APPROVED (for video)
+    ↓ User selects Video Style + optional AI Custom note
+    ↓ User taps [GENERATE VIDEO]
+  VIDEO_GENERATED
+    ↓ User reviews video → [Regenerate] loops back
+    ↓ User taps [APPROVE & CONTINUE]
+  FINAL / COMPLETE
+    ↓ [Download All] → ZIP delivered
+    ↓ [Create New Project] → State resets to IDLE
+
+════════════════════════════════════════════════════════════════════════════════
+JEWELLERY HUB PROMPT — ACTIVATE WHEN HUB = JEWELLERY
+════════════════════════════════════════════════════════════════════════════════
+
+[HUB: JEWELLERY] [GENRE: @JEWELLERY_GENRE] [STYLE: @JEWELLERY_STYLE]
+
+ISOLATION:
+  Bridal      → Full set only (necklace, earrings, maang tikka, bangles)
+                ❌ No minimal/studs-only output
+  Traditional → ONLY that heritage style (Kundan · Temple · Polki)
+                ❌ No modern/minimal conversion
+  Daily Wear  → ONLY lightweight/simple pieces ❌ No bridal heaviness
+  Fashion     → ONLY that specific item ❌ No full set unless source shows
+
+JEWELLERY EXTRACTION — SOURCE OF TRUTH: PRODUCT_IMAGE. Zero deviation.
+METAL FINISH  Exact tone — Gold · Silver · Rose Gold · Oxidised · Antique.
+STONE COLOUR  Every gemstone exact. Emerald ≠ jade. Ruby ≠ garnet.
+STONE SETTING Kundan · Prong · Bezel · Pavé · Polki — setting type preserved.
+TEXTURE       Filigree · engraving · polished · matte · hammered — full resolution.
+SCALE         Correct size relative to body. Not oversized. Not miniaturised.
+COMPONENTS    Every chain · pendant · earring back · clasp · tassel · jhumka present.
+
+GENRE DIRECTIVES:
+  Bridal     → Full set · necklace layered · maang tikka centred · earrings symmetrical ·
+               bangles stacked · rich warm lighting · mandap or deep jewel tone background.
+  Fashion    → Clean isolated or styled on model · minimalist background · highlight design.
+  Traditional→ Warm amber tones · Temple/Kundan → deep red, green, or ivory backdrop.
+  Daily Wear → White or soft pastel background · lightweight pieces · natural light.
+
+JEWELLERY LIGHTING:
+  Gold    → Warm key 3200K. Avoid cold blue tones.
+  Silver  → Cool diffused 5500K. Soft box.
+  Kundan  → Side lighting for stone depth and setting detail.
+  Pearls  → Soft diffused front light. No harsh specular.
+  Diamond → Point source or ring light for maximum sparkle.
+  Antique → Warm raking light. Emphasise texture and patina.
+  Polki   → Warm ambient fill. Preserve uncut stone surface.
+  Temple  → Warm amber accent. Deep red or ivory backdrop.
+
+SHOT:
+  IF MODEL_REF → Worn on body. Correct anatomical placement. Correct scale.
+                 Apply IDENTITY LOCK in full.
+  IF no model  → Isolated flat lay or prop stand · macro detail ·
+                 45° or overhead · hand for scale.
+
+Apply Background, Output Style, Output Views, AI Notes, Quality Gates,
+and Negative Prompt exactly as in Screen 5 prompt above.
+
+════════════════════════════════════════════════════════════════════════════════
+ACCESSORIES HUB PROMPT — ACTIVATE WHEN HUB = ACCESSORIES
+════════════════════════════════════════════════════════════════════════════════
+
+[HUB: ACCESSORIES] [TYPE: @ACCESSORY_TYPE]
+
+ISOLATION:
+  Bags     → ONLY bag ❌ No cross-accessory
+  Footwear → ONLY footwear pair/single ❌ No cross-accessory
+  Watches  → ONLY watch ❌ No cross-accessory
+  Eyewear  → ONLY eyewear ❌ No cross-accessory
+  Belts    → ONLY belt ❌ No cross-accessory
+  Scarves  → ONLY scarf ❌ No cross-accessory
+
+ACCESSORY EXTRACTION — SOURCE OF TRUTH: PRODUCT_IMAGE. Zero deviation.
+MATERIAL  Leather grain · canvas weave · metal finish · rubber — exact physics.
+COLOUR    Exact. Black leather ≠ dark brown. Navy ≠ black.
+HARDWARE  Buckles · zips · clasps · logos · rivets — all reproduced precisely.
+STITCHING Visible stitching lines · thread colour from source.
+SHAPE     Silhouette and proportions exactly as source.
+
+TYPE RULES:
+  Bags     → Structured shape retained · handles correctly positioned ·
+             grounding shadow · logo/branding legible.
+  Footwear → Pair from 3/4 angle · correct toe shape · heel height ·
+             sole thickness · laces/buckles from source.
+  Watches  → Crown at 3 o'clock · dial readable · time 10:10 unless differs ·
+             crystal reflection if present · brand text legible.
+  Eyewear  → Lens colour exact · frame silhouette precise · no reflections
+             obscuring lens unless artistic.
+  Belts    → Buckle centred · grain direction consistent · holes visible if in source.
+  Scarves  → Flat lay/folded/worn · pattern tiles correctly · fringe reproduced.
+
+SHOT:
+  Catalog   → White/grey seamless · centred · 45° · soft shadow · no props.
+  Premium   → Dark surface · dramatic side light · deep shadows.
+  Lifestyle → Worn in context — bag on arm · watch on wrist · shoes on feet.
+
+Apply Background, Output Style, Output Views, AI Notes, Quality Gates,
+and Negative Prompt exactly as in Screen 5 prompt above.
+
+════════════════════════════════════════════════════════════════════════════════
+PRODUCTS HUB PROMPT — ACTIVATE WHEN HUB = PRODUCTS
+════════════════════════════════════════════════════════════════════════════════
+
+[HUB: PRODUCTS] [FAMILY: @PRODUCT_FAMILY]
+
+ISOLATION:
+  Home Decor  → ONLY decor item in context ❌ No unrelated product
+  Beauty      → ONLY that product (label visible) ❌ No unrelated product
+  Handicraft  → ONLY craft item ❌ No unrelated product
+  Packaged    → ONLY packaging SKU(s) ❌ No unrelated product
+  Gifts       → ONLY relevant product arrangement ❌ No unrelated product
+
+PRODUCT EXTRACTION — SOURCE OF TRUTH: PRODUCT_IMAGE. Zero deviation.
+SHAPE      Exact form. No rounding or smoothing.
+COLOUR     Exact — critical for cosmetics and packaging. No drift.
+LABEL/TEXT All text · logos · graphics legible at full resolution.
+FINISH     Matte · Gloss · Frosted · Metallic · Textured — correct light response.
+SIZE       Relative scale physically correct in final image.
+Label and logo text must be fully legible at full resolution.
+
+FAMILY RULES:
+  Home Decor  → Room setting · props complement · warm ambient · in use context.
+  Beauty      → White marble or pastel surface · label legible · no fingerprints.
+  Handicrafts → Warm artisanal setting · jute/wood/terracotta · window light.
+  Packaged    → White/gradient bg · package upright · label facing camera ·
+                no shadows on label · group shot if multiple SKUs.
+  Gifts       → Styled flat lay · ribbon/box context · warm festive mood.
+
+SHOT:
+  Catalog   → White seamless · product fills 70% · soft shadow · label readable.
+  Premium   → Dark/textured surface · dramatic lighting · editorial props.
+  Lifestyle → Real-world context · ambient styling · natural light.
+
+Apply Background, Output Style, Output Views, AI Notes, Quality Gates,
+and Negative Prompt exactly as in Screen 5 prompt above.
+
+════════════════════════════════════════════════════════════════════════════════
+GLOBAL RULES (ALWAYS ENFORCED — ALL SCREENS — ALL HUBS)
+════════════════════════════════════════════════════════════════════════════════
+
+✅ BACKEND/AI ONLY:
+  All prompt logic, pipeline routing, validation, and AI generation
+  are handled entirely in the backend.
+
+🚫 FRONTEND IS COMPLETELY LOCKED:
+  DO NOT modify UI design · layout · components · styling (CSS/Tailwind) ·
+  page structure · existing user flow · button visibility · button position ·
+  button styling · any UI element in any way.
+  This system prompt must never be exposed to the client.
+
+🚫 NEVER:
+  Execute without valid user trigger
+  Generate static, cached, or mock outputs
+  Process missing required inputs
+  Run APPROVE_AND_CONTINUE before GENERATE_IMAGES
+  Run GENERATE_VIDEO before APPROVE_AND_CONTINUE
+  Share data across sessions or users
+  Modify identity, garment, or product from source image
+
+################################################################################
+#  END — DIGITAL ATELIER COMPLETE WORKING PROMPT v5.0                         #
+################################################################################

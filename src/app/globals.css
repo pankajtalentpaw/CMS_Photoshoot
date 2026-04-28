@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #8b5cf6;
+  --color-primary-glow: rgba(139, 92, 246, 0.15);
+  --color-accent: #d946ef;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-surface-border: rgba(255, 255, 255, 0.08);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  
+  --font-inter: var(--font-inter), ui-sans-serif, system-ui;
+  --font-roboto: var(--font-roboto), ui-sans-serif;
+  --font-manrope: var(--font-manrope), ui-sans-serif;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --text-secondary: #9CA3AF;
+  --gradient-figma: linear-gradient(103.5deg, #00C2FF 0%, #7C4DFF 50%, #FF00C7 100%);
+}
+
+html {
+  overflow-x: hidden;
+  /* Prevents 100vw from including scrollbar width, eliminating 1 source of overflow */
+  scrollbar-gutter: stable;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter);
+  min-height: 100vh;
+  overflow-x: hidden; /* Belt-and-suspenders guard */
+  /* Prevents rubber-band horizontal scroll on iOS Safari */
+  overscroll-behavior-x: none;
+}
+
+/* Prevent images/videos from ever exceeding their container */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+.text-figma-gradient {
+  background: var(--gradient-figma);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-figma-gradient {
+  background: var(--gradient-figma);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-pink {
+  filter: drop-shadow(0px 0px 17.65px rgba(236, 72, 153, 0.5));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+ * Horizontal Overflow Prevention Utilities
+ * ============================================================ */
+
+/**
+ * Use on intentional horizontal-scroll containers (ProductScroll,
+ * ModelScroll etc.) to prevent scroll from propagating to the page
+ * when the user reaches the end of the list.
+ */
+.h-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* Tell the browser this region scrolls sideways, not the page */
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/**
+ * Wrap every page's root <div> with this to clip any stray
+ * overflow. `clip` (unlike `hidden`) does not affect
+ * position:fixed children (e.g. BottomNav, FlowHeader).
+ */
+.page-wrapper {
+  position: relative;
+  overflow-x: clip;
+  width: 100%;
+}
+
+/* Ensure framer-motion drag elements don't tug the page */
+[data-framer-drag] {
+  touch-action: pan-y !important;
+}
+
+
+.recent-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.recent-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.recent-scroll::-webkit-scrollbar-thumb {
+  background: var(--gradient-figma);
+  border-radius: 10px;
+}
