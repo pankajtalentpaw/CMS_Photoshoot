@@ -6,8 +6,6 @@ import { generationService } from "@/backend/services/generationService";
 import { geminiService } from "@/backend/services/ai/geminiService";
 import type { PromptInputs } from "@/backend/prompts";
 import { z } from "zod";
-import fs from "fs";
-import path from "path";
 import cloudinary from "@/shared/config/cloudinary";
 
 async function ensurePublicUrl(url: string | null | undefined, userId: string, baseUrl: string): Promise<string | null> {
@@ -20,39 +18,12 @@ async function ensurePublicUrl(url: string | null | undefined, userId: string, b
   // If it's already a public non-local URL, return it
   if (isHttp && !isLocalHost) return url;
   
-  // If it's not local and not relative, we can't do much
-  if (!isLocalHost && !isRelative) return url;
-
-  try {
-    let relativePath: string;
-    if (isHttp) {
-      const urlObj = new URL(url);
-      relativePath = decodeURIComponent(urlObj.pathname);
-    } else {
-      relativePath = decodeURIComponent(url.split("?")[0]);
-    }
-
-    const localPath = path.join(process.cwd(), "public", relativePath);
-
-    if (!fs.existsSync(localPath)) {
-      console.warn(`[API/Generate] Local file not found at: ${localPath}`);
-      return isRelative ? `${baseUrl}${relativePath}` : url;
-    }
-
-    try {
-      const result = await cloudinary.uploader.upload(localPath, {
-        folder: `ecom-hub/auto-uploads/${userId}`,
-        resource_type: "auto",
-      });
-      return result.secure_url;
-    } catch (uploadError) {
-      console.error("[API/Generate] Cloudinary auto-upload failed:", uploadError);
-      // Fallback to absolute localhost URL to at least pass validation
-      return isRelative ? `${baseUrl}${relativePath}` : url;
-    }
-  } catch (error) {
-    return url;
+  // If it's a relative path, construct the absolute URL
+  if (isRelative) {
+    return `${baseUrl}${url}`;
   }
+
+  return url;
 }
 
 function isPublicHttpUrl(value: string) {
