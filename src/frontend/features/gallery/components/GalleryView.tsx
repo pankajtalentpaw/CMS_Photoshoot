@@ -61,7 +61,7 @@ function useGallery() {
   return { images, videos, loading, error };
 }
 
-export default function GalleryPage() {
+export default function GalleryView() {
   const [activeTab, setActiveTab] = useState<"images" | "videos">("images");
   const [mounted, setMounted] = useState(false);
   const { images, videos, loading, error } = useGallery();

@@ -54,6 +54,7 @@ export const UserController = {
         organizationName: body.organizationName,
         state: body.state,
         city: body.city,
+        profileImage: body.profileImage,
       };
 
       const updatedUser = await User.findByIdAndUpdate(
