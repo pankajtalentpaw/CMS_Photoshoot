@@ -49,11 +49,11 @@ const MODELS = [
 ];
 
 const BACKGROUNDS = [
-  { name: "White Studio", img: "/bg_white_studio.png" },
-  { name: "Premium Studio", img: "/bg_premium_studio.png" },
-  { name: "Saree Festival", img: "/bg_saree_festival.png" },
-  { name: "Outdoor", img: "/bg_outdoor.png" },
-  { name: "Modern Office", img: "/bg_modern_office.png" }
+  { name: "White Studio", img: "/assets/Bg Images/White Studio.jpg" },
+  { name: "Premium Studio", img: "/assets/Bg Images/Premium Studio.jpg" },
+  { name: "Saree Festival", img: "/assets/Bg Images/Festival Studio.jpg" },
+  { name: "Outdoor", img: "/assets/Bg Images/Outdoor.jpg" },
+  { name: "Modern Office", img: "/assets/Bg Images/Modern Office.jpg" }
 ];
 
 const OUTPUT_STYLES = ["Natural", "Sitting", "Outdoor"];
@@ -187,9 +187,35 @@ export const VirtualTryOnView = () => {
 
       // Public assets selected from the model picker are stored as relative paths.
       // Convert them to absolute URLs so backend URL validation accepts them.
-      if (modelUrl && modelUrl.startsWith("/")) {
-        modelUrl = `${window.location.origin}${modelUrl}`;
-      }
+      const ensurePublicUrl = async (url: string) => {
+        if (!url) return url;
+        
+        let targetUrl = url;
+        const isLocalPath = targetUrl.startsWith("/");
+        const isLocalHost = targetUrl.includes("localhost:") || targetUrl.includes("127.0.0.1:");
+
+        if (!isLocalPath && !isLocalHost) return url;
+
+        if (isLocalHost) {
+          try {
+            const parsed = new URL(targetUrl);
+            targetUrl = parsed.pathname + parsed.search;
+          } catch (e) {}
+        }
+
+        try {
+          const res = await fetch(targetUrl);
+          const blob = await res.blob();
+          const file = new File([blob], targetUrl.split("/").pop() || "asset.jpg", { type: blob.type });
+          return await storageService.uploadGarment(userId || "guest", file);
+        } catch (err) {
+          console.error("Failed to auto-upload local asset:", targetUrl, err);
+          return url;
+        }
+      };
+
+      if (modelUrl) modelUrl = await ensurePublicUrl(modelUrl);
+      if (garmentUrl) garmentUrl = await ensurePublicUrl(garmentUrl);
 
       if (clothingPhoto instanceof File) {
         garmentUrl = await storageService.uploadGarment(userId, clothingPhoto);

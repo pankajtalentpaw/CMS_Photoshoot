@@ -15,7 +15,7 @@ const JEWELLERY_SEGMENTS = [
   { title: "Fashion", image: "/jewellery_fashion.png", fullWidth: false },
   { title: "Traditional / Vintage", image: "/jewellery_traditional.png", fullWidth: false },
   { title: "Daily Wear / Minimal", image: "/jewellery_daily.png", fullWidth: false },
-  { title: "Custom / Other", image: "/hero_image.png", fullWidth: true },
+  { title: "Custom", image: "/hero_image.png", fullWidth: true },
 ];
 
 export default function JewelleryPage() {

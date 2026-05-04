@@ -10,6 +10,9 @@ import { motion } from "framer-motion";
 import LoadingActionButton from "@/frontend/components/LoadingActionButton";
 import { Skeleton } from "@/frontend/components/ui/Skeleton";
 import ProductTag from "@/frontend/components/ProductTag";
+import { useProject } from "@/frontend/context/ProjectContext";
+import { storageService } from "@/backend/services/storageService";
+import { useSession } from "next-auth/react";
 
 // Dynamic components
 const UploadZone = dynamic(() => import("@/frontend/components/UploadZone"), { 
@@ -33,10 +36,15 @@ export default function JewelleryUnifiedSetupPage() {
   const segment = (params.segment as string) || "bridal";
   const style = (params.style as string) || "sets-and-pieces";
 
+  const { updateProject } = useProject();
+  const { data: session } = useSession();
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [selectedModelImg, setSelectedModelImg] = useState<string | null>(null);
   const [selectedBackground, setSelectedBackground] = useState<string | null>(null);
   const [selectedOutputStyle, setSelectedOutputStyle] = useState<string | null>(null);
+  const [productFile, setProductFile] = useState<File | null>(null);
   
   // Selection Preview Modal
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -45,7 +53,13 @@ export default function JewelleryUnifiedSetupPage() {
   const outputStyles = ["Catalog", "Premium", "Social Media", "Lifestyle"];
 
   const handleModelSelect = (model: { id: string; image: string }) => {
-    setSelectedModel(prev => prev === model.id ? null : model.id);
+    if (selectedModel === model.id) {
+      setSelectedModel(null);
+      setSelectedModelImg(null);
+    } else {
+      setSelectedModel(model.id);
+      setSelectedModelImg(model.image);
+    }
   };
 
   const handleModelPreview = (model: { id: string; image: string }) => {
@@ -63,10 +77,32 @@ export default function JewelleryUnifiedSetupPage() {
   };
 
   const handleGenerate = async () => {
-    if (!selectedModel || !selectedBackground || !selectedOutputStyle) return;
+    if (!selectedModel || !selectedBackground || !selectedOutputStyle || !productFile) return;
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    router.push(`/jewellery/${segment}/${style}/approve-prime`);
+    
+    try {
+      const userId = session?.user?.id ?? "guest-user";
+      
+      // 1. Upload the product image
+      const productUrl = await storageService.uploadGarment(userId, productFile);
+      
+      // 2. Prepare the model URL (convert relative to absolute if needed)
+      // 3. Update the project context
+      updateProject({
+        productImageUrl: productUrl,
+        garmentImageUrl: productUrl,
+        modelImageUrl: selectedModelImg || "",
+        modelId: selectedModel,
+        backgroundId: selectedBackground,
+        styleId: selectedOutputStyle,
+      });
+
+      // 4. Navigate to approve-prime
+      router.push(`/jewellery/${segment}/${style}/approve-prime`);
+    } catch (error) {
+      console.error("Failed to generate jewellery asset:", error);
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -74,16 +110,12 @@ export default function JewelleryUnifiedSetupPage() {
       <FlowHeader title="Upload Product" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col">
-        <ProgressStepper currentStep={5} />
+        <ProgressStepper currentStep={1} partialStep={true} />
 
         <div className="flex flex-col gap-12 mt-10 mb-20">
           {/* 1. Upload Product Image */}
-          <section aria-labelledby="upload-section-title">
-            <div className="mb-6">
-              <h1 id="upload-section-title" className="font-roboto font-semibold text-2xl text-white mb-2">Upload Jewellery</h1>
-              <p className="text-sm text-[#99A1AF]">Upload a clear photo of your piece.</p>
-            </div>
-            <UploadZone />
+          <section aria-labelledby="upload-section-title" className="mb-2">
+            <UploadZone onFileSelect={setProductFile} />
           </section>
 
           {/* 2. Select Model */}
@@ -98,9 +130,9 @@ export default function JewelleryUnifiedSetupPage() {
             </div>
           </section>
 
-          {/* 3. Environment */}
+          {/* 3. Background Style */}
           <section aria-labelledby="env-section-title">
-            <h2 id="env-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Environment</h2>
+            <h2 id="env-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Background Style</h2>
             <BackgroundGrid 
               selectedTitle={selectedBackground} 
               onSelect={handleBackgroundSelect}
@@ -126,8 +158,8 @@ export default function JewelleryUnifiedSetupPage() {
           {/* 5. AI Notes */}
           <section>
             <div className="flex items-center gap-2 mb-6">
-              <h2 className="font-roboto font-semibold text-xl text-white">Production Notes</h2>
-              <span className="text-xs text-[#C5B6DE] uppercase tracking-wider">(Optional)</span>
+              <h2 className="font-roboto font-semibold text-xl text-white">AI Director Notes</h2>
+              <span className="text-sm text-[#C5B6DE] tracking-tight">(Optional)</span>
             </div>
             <AIDirectorNotes />
           </section>
@@ -138,10 +170,10 @@ export default function JewelleryUnifiedSetupPage() {
             <LoadingActionButton
               isLoading={isGenerating}
               onClick={handleGenerate}
-              disabled={isGenerating || !selectedModel || !selectedBackground || !selectedOutputStyle}
+              disabled={isGenerating || !selectedModel || !selectedBackground || !selectedOutputStyle || !productFile}
               className="w-full h-[61px] text-[18px]"
             >
-              Generate AI Asset
+              Generate Image
             </LoadingActionButton>
           </div>
         </div>

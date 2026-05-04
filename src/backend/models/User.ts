@@ -17,7 +17,9 @@ const UserSchema: Schema = new Schema({
   organizationName: { type: String, default: "" },
   state: { type: String, default: "" },
   city: { type: String, default: "" },
-  credits: { type: Number, default: 100 },
+  credits: { type: Number, default: 250 },
+
+  profileImage: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
 });
 

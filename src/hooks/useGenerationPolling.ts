@@ -2,6 +2,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { storageService } from "@/backend/services/storageService";
+import { useSession } from "next-auth/react";
 
 export type GenerationStatus = "idle" | "submitting" | "polling" | "completed" | "failed";
 
@@ -16,7 +18,9 @@ export interface GenerationResult {
   outputImages: string[];
   outputVideo: string | null;
   error: string | null;
+  jobId: string | null;
   generate: (payload: Record<string, unknown>) => void;
+  approve: (jobId: string) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -24,12 +28,14 @@ export function useGenerationPolling(
   options: UseGenerationPollingOptions = {}
 ): GenerationResult {
   const { pollIntervalMs = 4000, maxPolls = 75 } = options;
+  const { data: session } = useSession();
 
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [outputImages, setOutputImages] = useState<string[]>([]);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   const pollCount = useRef(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,6 +64,7 @@ export function useGenerationPolling(
     if (isMounted.current) {
       setStatus("idle");
       setError(null);
+      setJobId(null);
       setOutputImage(null);
       setOutputImages([]);
       setOutputVideo(null);
@@ -135,11 +142,14 @@ export function useGenerationPolling(
       setOutputImages([]);
       setOutputVideo(null);
 
+      const processedPayload = { ...payload };
+      const userId = session?.user?.id ?? "guest-user";
+
       try {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(processedPayload),
         });
 
         const data = await res.json();
@@ -155,6 +165,7 @@ export function useGenerationPolling(
         jobIdRef.current = data.jobId;
 
         if (isMounted.current) {
+          setJobId(data.jobId);
           setStatus("polling");
           // Immediate first poll, then interval
           pollStatus();
@@ -170,5 +181,19 @@ export function useGenerationPolling(
     [pollStatus, pollIntervalMs, stopPolling]
   );
 
-  return { status, outputImage, outputImages, outputVideo, error, generate, reset };
+  const approve = useCallback(async (jobId: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+      const data = await res.json();
+      return res.ok && data.success === true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  return { status, outputImage, outputImages, outputVideo, error, jobId, generate, approve, reset };
 }

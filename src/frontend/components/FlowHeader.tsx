@@ -17,7 +17,12 @@ const FlowHeader = ({ title, showBack = true }: FlowHeaderProps) => {
   const pathname = usePathname();
   const params = useParams();
   const { credits } = useProject();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userProfile } = useAuth();
+
+  const userInitials = [
+    (userProfile?.firstName?.[0] ?? "").toUpperCase(),
+    (userProfile?.lastName?.[0] ?? "").toUpperCase(),
+  ].filter(Boolean).join("") || "AG";
 
   const getBreadcrumbs = () => {
     const parts = pathname.split('/').filter(Boolean);
@@ -50,13 +55,13 @@ const FlowHeader = ({ title, showBack = true }: FlowHeaderProps) => {
           <div className="flex items-center gap-4">
             {showBack && (
               <motion.button 
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.back()}
                 aria-label="Go back to previous step"
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all group cursor-pointer"
+                className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center transition-all group cursor-pointer"
               >
-                <ChevronLeft className="w-5 h-5 text-white group-hover:-translate-x-0.5 transition-transform" aria-hidden="true" />
+                <ChevronLeft className="w-5 h-5 text-white" aria-hidden="true" />
               </motion.button>
             )}
             
@@ -108,11 +113,12 @@ const FlowHeader = ({ title, showBack = true }: FlowHeaderProps) => {
                 <div
                   role="status"
                   aria-label={`${credits} credits remaining`}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1A1E29] border border-[#7C4DFF]/20 shadow-[0_4px_15px_rgba(0,0,0,0.4)]"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 shadow-lg"
                 >
                   <Wallet className="w-3.5 h-3.5 text-[#7C4DFF]" aria-hidden="true" />
-                  <span className="font-roboto font-bold text-xs text-white tracking-wide" aria-hidden="true">
-                    {credits} <span className="text-[#7C4DFF] ml-0.5 uppercase opacity-80">CREDITS</span>
+                  <span className="font-roboto font-bold text-xs text-white tracking-wide flex items-center gap-1.5" aria-hidden="true">
+                    <span className="text-white">{credits}</span>
+                    <span className="text-[#7C4DFF] uppercase opacity-90 text-[10px]">CREDITS</span>
                   </span>
                 </div>
 
@@ -120,10 +126,20 @@ const FlowHeader = ({ title, showBack = true }: FlowHeaderProps) => {
                   <motion.div 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-lg"
+                    className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-lg overflow-hidden"
                     aria-hidden="true"
                   >
-                    <span className="font-bold text-xs md:text-base text-white" aria-hidden="true">AG</span>
+                    {userProfile?.profileImage ? (
+                      <img 
+                        src={userProfile.profileImage} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-bold text-xs md:text-base text-white" aria-hidden="true">
+                        {userInitials}
+                      </span>
+                    )}
                   </motion.div>
                 </Link>
               </>

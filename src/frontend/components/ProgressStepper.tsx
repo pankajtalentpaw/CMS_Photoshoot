@@ -8,27 +8,33 @@ interface ProgressStepperProps {
 }
 
 const ProgressStepper = ({ currentStep = 1, partialStep = false }: ProgressStepperProps) => {
-  const steps = Array.from({ length: 11 }, (_, i) => {
+  const steps = Array.from({ length: 6 }, (_, i) => {
     const stepNum = i + 1;
     return {
-      width: "30px", // Adjusted for 11 steps on mobile
       status: currentStep > stepNum ? "full" : currentStep === stepNum ? (partialStep ? "partial" : "full") : "empty"
     };
   });
 
   return (
-    <div className="w-full flex items-center justify-start md:justify-center gap-[10px] px-5 py-4 overflow-x-auto no-scrollbar">
+    <div className="w-full flex items-center justify-center gap-2 px-5 py-4">
       {steps.map((step, idx) => (
         <div 
           key={idx} 
-          className="relative h-[3px] rounded-full flex-none bg-white/10 overflow-hidden"
-          style={{ width: step.width }}
+          className="relative h-[4px] w-[50px] rounded-full bg-white/10 overflow-hidden"
         >
           {step.status === "full" && (
-            <div className="absolute inset-0 bg-gradient-to-r from-[#7C3AED] to-[#EC4899]" />
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              className="absolute inset-0 bg-gradient-to-r from-[#7C4DFF] to-[#EC4899]" 
+            />
           )}
           {step.status === "partial" && (
-            <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-gradient-to-r from-[#7C3AED] to-[#EC4899]" />
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: "60%" }}
+              className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#7C4DFF] to-[#EC4899]" 
+            />
           )}
         </div>
       ))}

@@ -110,16 +110,33 @@ export default function UnifiedUploadSetupPage() {
       return null;
     }
 
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
     const fromFiltered = filteredModels.find((model) => model.id === modelId)?.image;
     if (fromFiltered) {
-      return fromFiltered;
+      return fromFiltered.startsWith('http') ? fromFiltered : `${baseUrl}${fromFiltered}`;
     }
 
     const numericId = Number.parseInt(modelId, 10);
     if (!Number.isNaN(numericId)) {
-      return `/Model_${numericId}.jpg`;
+      return `${baseUrl}/Model_${numericId}.jpg`;
     }
 
+    return null;
+  };
+
+  const resolveBackgroundImage = () => {
+    if (!backgroundId) return null;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const map: Record<string, string> = {
+      "White Studio": "/assets/Bg Images/White Studio.jpg",
+      "Premium Studio": "/assets/Bg Images/Premium Studio.jpg",
+      "Festival Studio": "/assets/Bg Images/Festival Studio.jpg",
+      "Outdoor": "/assets/Bg Images/Outdoor.jpg",
+      "Modern Office": "/assets/Bg Images/Modern Office.jpg"
+    };
+    const path = map[backgroundId];
+    if (path) return `${baseUrl}${path.split(' ').join('%20')}`;
     return null;
   };
 
@@ -148,6 +165,7 @@ export default function UnifiedUploadSetupPage() {
         modelId: modelId || undefined,
         modelImageUrl: resolveModelImage() || undefined,
         backgroundId: backgroundId || undefined,
+        backgroundImageUrl: resolveBackgroundImage() || undefined,
         styleId: styleId || undefined,
         prompt: prompt || "",
         primeImage: undefined,
@@ -178,7 +196,7 @@ export default function UnifiedUploadSetupPage() {
       <FlowHeader title="Upload Product" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col">
-        <ProgressStepper currentStep={5} />
+        <ProgressStepper currentStep={1} partialStep={false} />
 
         {error && (
           <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
@@ -249,12 +267,12 @@ export default function UnifiedUploadSetupPage() {
 
         {/* Generate Button Area */}
         <div className="mb-10 lg:mb-16">
-          <div className="w-full max-w-full sm:max-w-[353px] mx-auto lg:max-w-[400px]">
+          <div className="w-full flex justify-center">
             <LoadingActionButton
               isLoading={isGenerating}
               onClick={handleGenerate}
               disabled={isGenerating || !rawFile || !modelId || !backgroundId || !styleId}
-              className="w-full h-[61px] text-[18px]"
+              className="w-full max-w-[353px] lg:max-w-[400px] h-[61px] rounded-full text-[18px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] hover:opacity-90 font-bold tracking-wide shadow-none"
             >
               {isGenerating ? "Generation Started..." : "Generate Prime Image"}
             </LoadingActionButton>

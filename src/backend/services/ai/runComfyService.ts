@@ -1,6 +1,7 @@
 // src/services/runComfyService.ts
 import { env } from "@/shared/config/env";
-import { buildMasterPrompt, type Hub, type PromptInputs, type Background, type VideoStyle } from "@/backend/services/ai/promptEngine";
+import { buildMasterPrompt } from "@/backend/prompts";
+import type { Hub, PromptInputs, Background, VideoStyle } from "@/backend/services/ai/promptEngine";
 import { buildLegacyPrompt } from "@/backend/services/ai/legacyPrompts";
 import { buildVideoPrompt } from "@/backend/services/ai/videoPrompts";
 
@@ -76,6 +77,7 @@ function isImageEditModel(modelId: string) {
 function buildNanoBananaEditPayload(params: {
   garmentImageUrl: string;
   modelImageUrl: string;
+  backgroundImageUrl?: string;
   prompt?: string;
   style?: string;
   background?: string;
@@ -104,9 +106,12 @@ function buildNanoBananaEditPayload(params: {
     clothingPoint: null,
   });
 
-  // Pydantic error path shows this model expects `input.image_urls[0]`.
-  // Provide both images to maximize conditioning: model/person first, then product reference.
-  const imageUrls = [params.modelImageUrl, params.garmentImageUrl].filter(Boolean);
+  // model/person first, garment second, background third (if provided)
+  const imageUrls = [
+    params.modelImageUrl,
+    params.garmentImageUrl,
+    ...(params.backgroundImageUrl ? [params.backgroundImageUrl] : []),
+  ].filter(Boolean);
 
   const outputFormat = base.output_format || "png";
   // This model is an image edit endpoint; keep a stable mode string.
@@ -119,12 +124,17 @@ function buildNanoBananaEditPayload(params: {
     num_outputs: base.num_outputs,
     output_format: outputFormat,
     mode: editMode,
+    ...(params.backgroundImageUrl ? {
+      background_image_url: params.backgroundImageUrl,
+      bg_image_url: params.backgroundImageUrl,
+    } : {}),
   };
 }
 
 function buildSeedreamSequentialPayload(params: {
   garmentImageUrl: string;
   modelImageUrl: string;
+  backgroundImageUrl?: string;
   prompt?: string;
   style?: string;
   background?: string;
@@ -153,17 +163,25 @@ function buildSeedreamSequentialPayload(params: {
     clothingPoint: null,
   });
 
-  const imageUrls = [params.modelImageUrl, params.garmentImageUrl].filter(Boolean);
+  // image[0] = model/person, image[1] = garment, image[2] = exact background scene (if provided)
+  const imageUrls = [
+    params.modelImageUrl,
+    params.garmentImageUrl,
+    ...(params.backgroundImageUrl ? [params.backgroundImageUrl] : []),
+  ].filter(Boolean);
   const requestedCount = base.num_outputs || 1;
 
-  // Pydantic is expecting root-level fields
   return {
     prompt: base.prompt,
     images: imageUrls,
     mode: "edit",
     num_outputs: requestedCount,
     output_format: base.output_format || "png",
-    sequential_image_generation_options: requestedCount
+    sequential_image_generation_options: requestedCount,
+    ...(params.backgroundImageUrl ? {
+      background_image_url: params.backgroundImageUrl,
+      bg_image_url: params.backgroundImageUrl,
+    } : {}),
   };
 }
 
@@ -344,6 +362,7 @@ function resolvePrompt(params: any): string {
       aiNotes: mergedPrompt || undefined,
       outputStyle: params.outputStyleV2 || styleHint,
       background: backgroundHint,
+      backgroundImageUrl: params.backgroundImageUrl || undefined,
       outputViews: params.outputViews,
       videoStyle: params.videoStyle,
       ...(params.hub === "Apparel" ? {
@@ -385,6 +404,7 @@ function buildModelPayload(params: {
   prompt?: string;
   style?: string;
   background?: string;
+  backgroundImageUrl?: string;
   mode?: "Virtual Try-On" | "AI Studio" | "VIDEO_GENERATION";
   gender?: "Male" | "Female" | "Kids" | "Man" | "Woman" | "Person";
   garmentType?: "Fabric" | "Ready-made";
@@ -453,6 +473,8 @@ function buildModelPayload(params: {
     cloth_point: params.clothingPoint || undefined,
     model_point: params.userPoint || undefined,
     garment_point: params.clothingPoint || undefined,
+    background_image_url: params.backgroundImageUrl || undefined,
+    bg_image_url: params.backgroundImageUrl || undefined,
   };
 }
 
@@ -504,6 +526,7 @@ function buildDeploymentPayload(params: {
   prompt?: string;
   style?: string;
   background?: string;
+  backgroundImageUrl?: string;
   mode?: "Virtual Try-On" | "AI Studio" | "VIDEO_GENERATION";
   gender?: "Male" | "Female" | "Kids" | "Man" | "Woman" | "Person";
   garmentType?: "Fabric" | "Ready-made";
@@ -636,6 +659,7 @@ export const runComfyService = {
     prompt?: string;
     style?: string;
     background?: string;
+    backgroundImageUrl?: string;
     mode?: "Virtual Try-On" | "AI Studio" | "VIDEO_GENERATION";
     gender?: "Male" | "Female" | "Kids" | "Man" | "Woman" | "Person";
     garmentType?: "Fabric" | "Ready-made";
@@ -677,6 +701,11 @@ export const runComfyService = {
           `${mode} requires an image-conditioned ComfyUI deployment to apply the uploaded product onto the selected model. ` +
           `Set RUNCOMFY_DEPLOYMENT_ID to your deployed try-on workflow (recommended), or switch RUNCOMFY_MODEL_ID to a workflow/model that supports image inputs.`
       );
+    }
+
+    if (process.env.MOCK_AI_GENERATION === "true") {
+      console.log("🛠️ [runComfyService] Mock mode active. Returning mock status URL.");
+      return "mock-request-id";
     }
 
     try {
@@ -739,8 +768,17 @@ export const runComfyService = {
   async checkStatus(requestId: string) {
     const config = getRunComfyConfig();
 
-    if (!config.apiKey) {
+    if (!config.apiKey && process.env.MOCK_AI_GENERATION !== "true") {
       return { status: "failed", error: "Missing RunComfy API Key" };
+    }
+
+    if (requestId === "mock-request-id") {
+      return {
+        status: "completed" as const,
+        outputImage: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop",
+        outputImages: ["https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop"],
+        error: null,
+      };
     }
 
     try {

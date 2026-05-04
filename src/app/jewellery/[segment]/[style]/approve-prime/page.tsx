@@ -26,8 +26,8 @@ export default function JewelleryApprovePrimePage() {
   const [isRegenerateMode, setIsRegenerateMode] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const { currentProject, setProjectData, spendCredits } = useProject();
-  const { status, outputImage, error, generate, reset } = useGenerationPolling();
+  const { currentProject, setProjectData, updateProject, spendCredits } = useProject();
+  const { status, outputImage, error, generate, reset, jobId } = useGenerationPolling();
 
   const isGenerating = status === "submitting" || status === "polling";
   const isFailed = status === "failed";
@@ -41,19 +41,25 @@ export default function JewelleryApprovePrimePage() {
     "Natural Skin Tone": "Averaging sub-surface scattering for high-fidelity integration..."
   };
 
-  const buildPayload = (chips: string[] = [], note = "") => ({
-    garmentImageUrl: currentProject?.garmentImageUrl || currentProject?.productImageUrl || "",
-    modelImageUrl: currentProject?.modelImageUrl || currentProject?.garmentImageUrl || "",
-    mode: "AI Studio" as const,
-    hub: "Jewellery" as const,
-    jewelleryGenre: segment.charAt(0).toUpperCase() + segment.slice(1),
-    jewelleryStyle: style.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-    style: currentProject?.styleId || "Premium",
-    background: currentProject?.backgroundId || "Studio Black",
-    outputFormat: "single" as const,
-    outputCount: 1,
-    prompt: [chips.join(", "), note].filter(Boolean).join(". "),
-  });
+  const buildPayload = (chips: string[] = [], note = "") => {
+    let garmentUrl = currentProject?.garmentImageUrl || currentProject?.productImageUrl || "";
+    let modelUrl = currentProject?.modelImageUrl || currentProject?.garmentImageUrl || "";
+
+
+    return {
+      garmentImageUrl: garmentUrl,
+      modelImageUrl: modelUrl,
+      mode: "AI Studio" as const,
+      hub: "Jewellery" as const,
+      jewelleryGenre: segment.charAt(0).toUpperCase() + segment.slice(1),
+      jewelleryStyle: style.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+      style: currentProject?.styleId || "Premium",
+      background: currentProject?.backgroundId || "Premium Studio",
+      outputFormat: "single" as const,
+      outputCount: 1,
+      prompt: [chips.join(", "), note].filter(Boolean).join(". "),
+    };
+  };
 
   useEffect(() => {
     const p = buildPayload();
@@ -62,11 +68,15 @@ export default function JewelleryApprovePrimePage() {
   }, []);
 
   useEffect(() => {
-    if (status === "completed" && outputImage) {
-      setProjectData({ ...(currentProject || {}), primeImage: outputImage });
+    if (status === "completed" && outputImage && jobId) {
+      setProjectData({ 
+        ...(currentProject || {}), 
+        primeImage: outputImage,
+        sourceJobId: jobId 
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, outputImage]);
+  }, [status, outputImage, jobId]);
 
   const handleApprove = async () => {
     if (!spendCredits(5)) { alert("Insufficient credits."); return; }
@@ -86,9 +96,9 @@ export default function JewelleryApprovePrimePage() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-black text-white">
-      <FlowHeader title="Approve Base Asset" />
+      <FlowHeader title="Generated Result" />
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
-        <ProgressStepper currentStep={7} />
+        <ProgressStepper currentStep={2} partialStep={true} />
         <AnimatePresence mode="wait">
           {isGenerating ? (
             <motion.div key="gen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -120,25 +130,32 @@ export default function JewelleryApprovePrimePage() {
             <motion.div key="result" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               className="flex-1 w-full flex flex-col items-center"
             >
-              <section className="mt-8 mb-6 text-center">
-                <h1 className="font-roboto font-semibold text-2xl text-white mb-2">Review Primary Asset</h1>
-                <p className="text-[#C2C6D6] text-sm max-w-[300px]">Confirm the look. This leads the style for your entire catalog.</p>
-              </section>
+              <div className="mt-8 mb-4 w-full max-w-full sm:max-w-[353px]">
+                {/* Space for text if needed, or keep it clean like screenshot */}
+              </div>
 
               <div
-                onDoubleClick={() => setShowFullPreview(true)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => setShowFullPreview(true), 500); }}
-                onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
-                className="relative w-full aspect-square max-w-full sm:max-w-[353px] rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,194,255,0.15)] mb-10 border border-white/10 group cursor-zoom-in transition-all"
+                className="relative w-full aspect-square max-w-full sm:max-w-[353px] rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-8 border border-white/10 group transition-all"
               >
                 {displayImage ? (
                   <Image src={displayImage} alt="Jewellery Prime Render" fill
-                    className="object-cover transition-transform group-hover:scale-105" priority unoptimized />
+                    className="object-cover" priority unoptimized />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-white/5">
                     <Gem className="w-10 h-10 text-[#00C2FF]/40 animate-pulse" />
                   </div>
                 )}
+                
+                {/* Overlay Icons from Screenshot */}
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <button onClick={() => setShowFullPreview(true)} className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all">
+                    <X className="w-5 h-5 text-white rotate-45" /> {/* Search icon replacement */}
+                  </button>
+                  <button onClick={() => setShowFullPreview(true)} className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all">
+                    <div className="w-4 h-4 border-2 border-white rounded-sm" /> {/* Fullscreen icon replacement */}
+                  </button>
+                </div>
+
                 <AnimatePresence>
                   {feedback.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -152,34 +169,38 @@ export default function JewelleryApprovePrimePage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-2">
-                  <Sparkles className="w-3 h-3 text-[#FF00C7]" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF00C7]">Luxury Render v2.4</span>
-                </div>
               </div>
 
-              <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-4 mb-10">
-                <LoadingActionButton isLoading={isApproving} onClick={handleApprove}
-                  className="w-full h-[61px] text-[18px]" icon={<Check className="w-5 h-5" />} disabled={!displayImage}>
-                  Approve and Continue
-                </LoadingActionButton>
-                {!isRegenerateMode && (
-                  <button onClick={() => setIsRegenerateMode(true)} className="text-[#00C2FF] text-sm font-medium hover:underline">
-                    Not happy with the result?
+              <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-6 mb-10">
+                {/* Secondary Actions row */}
+                <div className="flex flex-row gap-4">
+                  <button 
+                    onClick={handleRegenerate}
+                    className="flex-1 h-[54px] bg-white/[0.03] border border-white/10 rounded-[18px] flex items-center justify-center gap-2 text-white/90 font-bold text-sm hover:bg-white/5 transition-all"
+                  >
+                    <RefreshCcw className="w-4 h-4" /> Regenerate
                   </button>
-                )}
+                  <button 
+                    onClick={() => setIsRegenerateMode(!isRegenerateMode)}
+                    className="flex-1 h-[54px] bg-white/[0.03] border border-white/10 rounded-[18px] flex items-center justify-center gap-2 text-white/90 font-bold text-sm hover:bg-white/5 transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Edit Prompt
+                  </button>
+                </div>
+
+                <LoadingActionButton isLoading={isApproving} onClick={handleApprove}
+                  className="w-full h-[61px] text-[18px]" disabled={!displayImage}>
+                  Approve & Continue
+                </LoadingActionButton>
               </div>
 
               <AnimatePresence>
                 {isRegenerateMode && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                    className="w-full max-w-full sm:max-w-[353px] overflow-hidden"
+                    className="w-full max-w-full sm:max-w-[353px] overflow-hidden mb-10"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto font-semibold text-base text-white">Refine & Regenerate</h3>
-                      <button onClick={() => setShowTextBox(!showTextBox)} className="flex items-center gap-1 text-[#00C2FF] text-xs font-medium">
-                        <MessageSquare className="w-3 h-3" /> {showTextBox ? "Hide Note" : "Add Note"}
-                      </button>
+                      <h3 className="font-roboto font-semibold text-base text-white">Refine AI Director Prompt</h3>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-6">
                       {Object.keys(chipPrompts).map(chip => (
@@ -189,19 +210,10 @@ export default function JewelleryApprovePrimePage() {
                         >{chip}</button>
                       ))}
                     </div>
-                    <AnimatePresence>
-                      {showTextBox && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-6">
-                          <textarea value={customNote} onChange={e => setCustomNote(e.target.value)}
-                            placeholder="E.g. Make the stones reflect more blue light..."
-                            className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#00C2FF] outline-none placeholder:text-[#C2C6D6]/40 resize-none"
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    <button onClick={handleRegenerate}
-                      className="w-full h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 text-[#00C2FF] font-bold text-sm mb-20"
-                    ><RefreshCcw className="w-4 h-4" /> Regenerate</button>
+                    <textarea value={customNote} onChange={e => setCustomNote(e.target.value)}
+                      placeholder="E.g. Make the stones reflect more blue light..."
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#00C2FF] outline-none placeholder:text-[#C2C6D6]/40 resize-none mb-6"
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

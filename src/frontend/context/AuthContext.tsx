@@ -18,12 +18,19 @@ type SignupPayload = {
 };
 
 type ProfileUpdatePayload = Partial<
-  Pick<IUser, "firstName" | "lastName" | "email" | "phoneNumber" | "workStatus" | "organizationName" | "state" | "city">
+  Pick<IUser, "firstName" | "lastName" | "email" | "phoneNumber" | "workStatus" | "organizationName" | "state" | "city" | "profileImage">
 >;
+
+export type GenerationStats = {
+  imageCount: number;
+  videoCount: number;
+  totalCount: number;
+};
 
 interface AuthContextType {
   user: { id: string; email?: string | null; firstName?: string; lastName?: string; name?: string | null } | null;
   userProfile: IUser | null;
+  generationStats: GenerationStats | null;
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -37,6 +44,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [userProfile, setUserProfile] = useState<IUser | null>(null);
+  const [generationStats, setGenerationStats] = useState<GenerationStats | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
   useEffect(() => {
@@ -46,11 +54,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .then((res) => res.json())
         .then((data) => {
           setUserProfile(data.user ?? null);
+          setGenerationStats(data.stats ?? null);
         })
-        .catch(() => setUserProfile(null))
+        .catch(() => {
+          setUserProfile(null);
+          setGenerationStats(null);
+        })
         .finally(() => setLoadingProfile(false));
     } else {
       setUserProfile(null);
+      setGenerationStats(null);
     }
   }, [session, status]);
 
@@ -110,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user: session?.user ?? null,
     userProfile,
+    generationStats,
     loading: status === "loading" || loadingProfile,
     isAuthenticated: status === "authenticated",
     login,

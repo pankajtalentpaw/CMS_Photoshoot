@@ -14,5 +14,6 @@ export interface IUser {
   state: string;
   city: string;
   credits: number;
+  profileImage?: string;
   createdAt: Date | string;
 }

@@ -21,10 +21,12 @@ export default function ProductsVideoStyleSelectionPage() {
   const styleParam = (params.style as string) || "home";
   const product = searchParams.get("product") || "Product";
 
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(currentProject?.videoStyle || null);
+  const [customPrompt, setCustomPrompt] = useState(currentProject?.videoPrompt || "");
   const { status, outputVideo, error, generate, reset } = useGenerationPolling();
 
   const isLoading = status === "submitting" || status === "polling";
+  const isFailed = status === "failed";
   const isCompleted = status === "completed";
 
   // Determine fallback image from taxonomy
@@ -34,36 +36,20 @@ export default function ProductsVideoStyleSelectionPage() {
   const previewImage = currentProject?.primeImage || matchedFamily?.image || "/assets/placeholder-product.jpg";
 
   const videoStyles = [
-    { 
-      id: "staged-motion", 
-      title: "Staged Motion", 
-      description: "Atmospheric motion in a lifestyle or studio setting.",
-      image: previewImage
-    },
-    { 
-      id: "detail-zoom", 
-      title: "Texture Zoom", 
-      description: "Extreme close-up zoom highlighting product surface and finish.",
-      image: previewImage
-    },
-    { 
-      id: "slow-rotation", 
-      title: "Slow Rotation", 
-      description: "Smooth 360° turn for full product dimensionality.",
-      image: previewImage
-    },
-    { 
-      id: "ambient-mood", 
-      title: "Ambient Mood", 
-      description: "Slow-motion lighting shifts and soft decorative focus.",
-      image: previewImage
-    }
+    { id: "staged-motion", title: "Staged Motion" },
+    { id: "detail-zoom", title: "Texture Zoom" },
+    { id: "slow-rotation", title: "Slow Rotation" },
+    { id: "ambient-mood", title: "Ambient Mood" }
   ];
 
   useEffect(() => {
     if (isCompleted && outputVideo) {
-      updateProject({ videoUrl: outputVideo });
-      router.push(`/products/${styleParam}/final-results?product=${product}`);
+      updateProject({ 
+        videoUrl: outputVideo,
+        videoStyle: selectedStyle || undefined,
+        videoPrompt: customPrompt
+      });
+      router.push(`/products/${styleParam}/video/result?product=${product}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompleted, outputVideo]);
@@ -80,15 +66,17 @@ export default function ProductsVideoStyleSelectionPage() {
       wearType: product,
       style: currentProject?.styleId || "Catalog",
       videoStyle: selectedStyle,
+      sourceJobId: currentProject?.sourceJobId || "",
+      prompt: customPrompt
     });
   };
 
   return (
-    <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30">
-      <FlowHeader title="Video Treatment" />
+    <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30 font-roboto">
+      <FlowHeader title="Video Style" />
 
-      <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5">
-        <ProgressStepper currentStep={10} />
+      <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 pb-20">
+        <ProgressStepper currentStep={5} partialStep={true} />
 
         {/* Generating Overlay */}
         <AnimatePresence>
@@ -110,88 +98,123 @@ export default function ProductsVideoStyleSelectionPage() {
                   <Film className="w-10 h-10 text-[#7C4DFF] animate-pulse" />
                 </div>
               </div>
-              <div className="text-center">
-                <h2 className="text-3xl font-bold text-white mb-2 font-manrope italic">Synthesizing Product Video</h2>
-                <p className="text-[#C2C6D6] text-base animate-pulse">Running Seedance 1.0 motion pipeline...</p>
-                <div className="mt-4 px-6 py-2 bg-white/5 border border-white/10 rounded-full">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#7C4DFF]">
-                    {videoStyles.find(v => v.id === selectedStyle)?.title} • 4K
-                  </span>
-                </div>
+              <div className="text-center px-6">
+                <h2 className="text-2xl font-bold text-white mb-2 font-manrope italic">Synthesizing Product Video</h2>
+                <p className="text-[#99A1AF] text-sm animate-pulse">Style: {videoStyles.find(v => v.id === selectedStyle)?.title}</p>
+                <p className="text-[#99A1AF] text-xs mt-1 opacity-60">Running Seedance 1.0 motion pipeline...</p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <section className="mt-8 mb-10 text-center">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="font-roboto font-semibold text-3xl text-white mb-4">
-              Motion Treatment
-            </h1>
-            <p className="text-[#C2C6D6] max-w-md mx-auto">
-              Choose how your {product} should move in the final catalog video.
-            </p>
-          </motion.div>
-        </section>
-
-        {error && (
+        {isFailed || error ? (
           <motion.div 
             initial={{ opacity: 0, y: -10 }} 
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3"
           >
             <AlertCircle className="w-5 h-5 text-red-400" />
-            <p className="text-red-400 text-sm">{error}</p>
-            <button onClick={handleGenerate} className="ml-auto text-red-400 text-sm underline flex items-center gap-1">
+            <p className="text-red-400 text-sm font-medium">{error || "Video generation failed."}</p>
+            <button onClick={handleGenerate} className="ml-auto text-red-400 text-sm font-bold underline flex items-center gap-1">
               <RefreshCcw className="w-3 h-3" /> Retry
             </button>
           </motion.div>
+        ) : null}
+
+        <section className="mb-10 text-center mt-10">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="font-bold text-[32px] md:text-[42px] leading-tight tracking-[-1px] text-white mb-3">
+              Select Video Style
+            </h1>
+            <p className="font-normal text-[15px] leading-[22px] text-[#9CA3AF]">
+              Choose video animation style
+            </p>
+          </motion.div>
+        </section>
+
+        {(!currentProject?.sourceJobId && !isLoading) && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2 max-w-[800px] mx-auto"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-400" />
+              <p className="text-amber-400 text-sm font-bold uppercase tracking-wider">Connection Lost</p>
+            </div>
+            <p className="text-amber-400/80 text-xs font-medium ml-8">
+              Please 
+              <button 
+                onClick={() => router.push(`/products/${styleParam}/approve-prime?product=${product}`)}
+                className="mx-1 underline hover:text-amber-300 transition-colors"
+              >
+                go back to Approval step
+              </button> 
+              to restore your context.
+            </p>
+          </motion.div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          {videoStyles.map((vs, idx) => (
-            <motion.div
-              key={vs.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              onClick={() => setSelectedStyle(vs.id)}
-              className={`relative h-[220px] rounded-2xl overflow-hidden cursor-pointer border-2 transition-all group ${
-                selectedStyle === vs.id ? "border-[#7C4DFF]" : "border-white/10 hover:border-white/20"
-              }`}
-            >
-              <Image src={vs.image} alt={vs.title} fill className="object-cover opacity-50 group-hover:opacity-70 transition-opacity" unoptimized />
-              <div className="absolute inset-0 p-6 flex flex-col justify-end bg-gradient-to-t from-black via-black/30 to-transparent">
-                <div className="flex items-center gap-2 mb-1">
-                  <Play className={`w-4 h-4 ${selectedStyle === vs.id ? "text-[#7C4DFF]" : "text-white"}`} />
-                  <h3 className="font-bold text-lg">{vs.title}</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-10 mb-16 max-w-[353px] lg:max-w-[800px] mx-auto">
+          {videoStyles.map((vs, idx) => {
+            const isSelected = selectedStyle === vs.id;
+            return (
+              <motion.div key={vs.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                onClick={() => setSelectedStyle(vs.id)}
+                className="flex flex-col items-center gap-4 group cursor-pointer"
+              >
+                <div className={`relative w-full aspect-[166/207] rounded-[16px] overflow-hidden border transition-all duration-300 ${isSelected ? "border-[#7C4DFF] border-[2px] shadow-[0_0_20px_rgba(124,77,255,0.3)]" : "border-white/10 border-[1px] hover:border-white/30"}`}>
+                  <Image src={previewImage} alt={vs.title} fill className={`object-cover transition-transform duration-700 ${isSelected ? "scale-105" : "opacity-80 group-hover:opacity-100 group-hover:scale-105"}`} unoptimized />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className={`w-[44px] h-[44px] rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-500 ${isSelected ? "bg-gradient-to-br from-[#7C4DFF] to-[#FF00C7] scale-110 shadow-lg" : "bg-white/10 border border-white/20 group-hover:bg-white/20 group-hover:scale-110"}`}>
+                      <Play className={`w-5 h-5 ml-0.5 ${isSelected ? "text-white fill-white" : "text-white/80"}`} />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-300">{vs.description}</p>
-              </div>
-              {selectedStyle === vs.id && (
-                <div className="absolute top-4 right-4 bg-[#7C4DFF] p-2 rounded-full shadow-lg">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-              )}
-            </motion.div>
-          ))}
+                <span className={`font-medium text-[13px] leading-[15px] transition-colors ${isSelected ? "text-white font-bold" : "text-[#9CA3AF] group-hover:text-white"}`}>
+                  {vs.title}
+                </span>
+              </motion.div>
+            );
+          })}
         </div>
 
-        <div className="w-full mt-auto mb-10 flex flex-col items-center gap-4">
-          <div className="w-full max-w-full sm:max-w-[353px]">
-            <LoadingActionButton
-              isLoading={isLoading}
+        <section className="w-full max-w-[353px] lg:max-w-[800px] mx-auto flex flex-col gap-8 mb-16">
+          <div className="flex flex-col gap-3 px-1">
+            <div className="flex">
+              <span className="px-4 py-1.5 bg-white/[0.05] border border-white/10 rounded-full text-[12px] font-bold text-white tracking-wide uppercase">Use Prompt</span>
+            </div>
+            <p className="text-[11px] text-red-400 font-medium flex items-center gap-1.5 opacity-80">
+              <AlertCircle className="w-3 h-3" />
+              Custom prompts may vary. Use at your own risk
+            </p>
+          </div>
+          
+          <div className="px-1">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-[18px] font-bold text-white tracking-tight">AI Custom</h2>
+              <span className="text-[13px] text-white/30 font-normal">(Optional)</span>
+            </div>
+            <textarea 
+              value={customPrompt} 
+              onChange={e => setCustomPrompt(e.target.value)}
+              className="w-full h-[120px] bg-white/[0.03] border border-white/10 rounded-[22px] p-6 text-[14px] leading-relaxed text-white outline-none focus:border-white/20 transition-all placeholder:text-white/20 resize-none shadow-inner font-roboto"
+              placeholder="E.g. Focus on the golden pallu details, add warm sunlight flare from left..."
+            />
+          </div>
+
+          <div className="mt-4">
+            <LoadingActionButton 
+              isLoading={isLoading} 
               onClick={handleGenerate}
-              className="w-full h-[61px] text-lg font-bold"
+              className="w-full h-[61px] text-[18px] font-bold rounded-full bg-gradient-to-r from-[#00A3FF] to-[#D100FF] shadow-[0_10px_30px_rgba(0,163,255,0.2)]" 
               disabled={!selectedStyle || isLoading}
             >
-              Synthesize Video
+              Generate Video
             </LoadingActionButton>
           </div>
-          <button onClick={() => router.push(`/products/${styleParam}/final-results?product=${product}`)} className="text-white/40 text-sm hover:text-white transition-colors">
-            Skip video step
-          </button>
-        </div>
+        </section>
       </main>
 
       <Footer />

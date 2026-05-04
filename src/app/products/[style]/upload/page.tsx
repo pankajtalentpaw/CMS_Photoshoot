@@ -9,6 +9,11 @@ import { useState } from "react";
 import LoadingActionButton from "@/frontend/components/LoadingActionButton";
 import { Skeleton } from "@/frontend/components/ui/Skeleton";
 import ProductTag from "@/frontend/components/ProductTag";
+import ModelScroll from "@/frontend/components/ModelScroll";
+
+import { useProject } from "@/frontend/context/ProjectContext";
+import { storageService } from "@/backend/services/storageService";
+import { useSession } from "next-auth/react";
 
 // Dynamic components
 const UploadZone = dynamic(() => import("@/frontend/components/UploadZone"), { 
@@ -29,9 +34,14 @@ export default function ProductsUnifiedSetupPage() {
   const style = (params.style as string) || "home";
   const product = searchParams.get("product") || "Vase";
 
+  const { updateProject } = useProject();
+  const { data: session } = useSession();
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState<string>("Premium Studio");
   const [selectedOutputStyle, setSelectedOutputStyle] = useState<string>("Catalog");
+  const [selectedModel, setSelectedModel] = useState<string>("1");
+  const [productFile, setProductFile] = useState<File | null>(null);
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -39,9 +49,27 @@ export default function ProductsUnifiedSetupPage() {
   const outputStyles = ["Catalog", "Premium", "Lifestyle", "Commercial"];
 
   const handleGenerate = async () => {
+    if (!productFile) return;
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    router.push(`/products/${style}/approve-prime?product=${product}`);
+    
+    try {
+      const userId = session?.user?.id ?? "guest-user";
+      const productUrl = await storageService.uploadGarment(userId, productFile);
+
+      updateProject({
+        productImageUrl: productUrl,
+        garmentImageUrl: productUrl,
+        backgroundId: selectedBackground,
+        styleId: selectedOutputStyle,
+        modelId: selectedModel,
+        modelImageUrl: `/Model_${selectedModel}.jpg`, 
+      });
+
+      router.push(`/products/${style}/approve-prime?product=${product}`);
+    } catch (error) {
+      console.error("Failed to generate products asset:", error);
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -49,7 +77,7 @@ export default function ProductsUnifiedSetupPage() {
       <FlowHeader title="Production Setup" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col">
-        <ProgressStepper currentStep={5} />
+        <ProgressStepper currentStep={1} partialStep={true} />
 
         <div className="flex flex-col gap-12 mt-10 mb-20">
           {/* Section 6.5: Upload + Preset Selection */}
@@ -58,14 +86,20 @@ export default function ProductsUnifiedSetupPage() {
               <h1 id="upload-section-title" className="font-roboto font-semibold text-2xl text-white mb-2 capitalize">{product} Setup</h1>
               <p className="text-sm text-[#99A1AF]">Upload your product for {style} shoot</p>
             </div>
-            <UploadZone />
+            <UploadZone onFileSelect={setProductFile} />
           </section>
 
-          {/* Model is optional for Products, usually only for Lifestyle. For V1 we skip ModelScroll for Products unless it's a model-based scene. */}
-          {/* We'll skip ModelScroll here to differentiate from Apparel/Jewellery and keep it "Compact" */}
+          {/* Model Selection */}
+          <section aria-labelledby="model-section-title">
+            <h2 id="model-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Select Model</h2>
+            <ModelScroll 
+              selectedId={selectedModel} 
+              onSelect={(m) => setSelectedModel(m.id)} 
+            />
+          </section>
 
           <section aria-labelledby="env-section-title">
-            <h2 id="env-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Environment Style</h2>
+            <h2 id="env-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Background Style</h2>
             <BackgroundGrid 
               selectedTitle={selectedBackground} 
               onSelect={(bg) => setSelectedBackground(bg.title)}
@@ -74,7 +108,7 @@ export default function ProductsUnifiedSetupPage() {
           </section>
 
           <section aria-labelledby="output-section-title">
-            <h2 id="output-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Output Aesthetic</h2>
+            <h2 id="output-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Output Style</h2>
             <div className="flex flex-wrap gap-3">
               {outputStyles.map((item) => (
                 <ProductTag 
@@ -89,8 +123,8 @@ export default function ProductsUnifiedSetupPage() {
 
           <section>
             <div className="flex items-center gap-2 mb-6">
-              <h2 className="font-roboto font-semibold text-xl text-white">AI Studio Notes</h2>
-              <span className="text-xs text-[#C5B6DE] uppercase tracking-wider">(Optional)</span>
+              <h2 className="font-roboto font-semibold text-xl text-white">AI Director Notes</h2>
+              <span className="text-sm text-[#C5B6DE] tracking-tight">(Optional)</span>
             </div>
             <AIDirectorNotes />
           </section>
@@ -101,6 +135,7 @@ export default function ProductsUnifiedSetupPage() {
             <LoadingActionButton
               isLoading={isGenerating}
               onClick={handleGenerate}
+              disabled={isGenerating || !productFile}
               className="w-full h-[61px] text-[18px]"
             >
               Generate Prime Image

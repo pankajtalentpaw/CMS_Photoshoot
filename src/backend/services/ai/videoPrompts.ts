@@ -310,10 +310,10 @@ Settle     : Final 15% — fabric settles back to resting position.
 BACKGROUND EXECUTION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 White Studio    Pure white seamless · soft-box front · faint floor shadow.
-Premium Studio  Dark charcoal · Rembrandt lighting · warm gold rim light.
-Saree Festival  Mandap or temple · marigolds · diyas · warm amber.
+Premium Studio  Dark luxury studio · matte black textures · architectural square LED ceiling panels.
+Saree Festival  Elite festival studio · deep crimson backdrop · large glowing circular halo.
 Outdoor         Garden or heritage monument · natural sunlight · soft fill.
-Modern Office   Large windows · diffused daylight · neutral tones.
+Modern Office   Modern zen lounge · sage green feature wall · minimalist wooden shelf.
 
 LIGHTING RULE: Light direction · colour temperature · intensity
 on model MUST match background in every single frame.

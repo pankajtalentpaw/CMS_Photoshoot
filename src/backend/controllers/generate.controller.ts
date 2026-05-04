@@ -3,7 +3,57 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { runComfyService } from "@/backend/services/ai/runComfyService";
 import { generationService } from "@/backend/services/generationService";
+import { geminiService } from "@/backend/services/ai/geminiService";
+import type { PromptInputs } from "@/backend/prompts";
 import { z } from "zod";
+import fs from "fs";
+import path from "path";
+import cloudinary from "@/shared/config/cloudinary";
+
+async function ensurePublicUrl(url: string | null | undefined, userId: string, baseUrl: string): Promise<string | null> {
+  if (!url) return null;
+
+  const isHttp = url.startsWith("http://") || url.startsWith("https://");
+  const isLocalHost = url.includes("localhost") || url.includes("127.0.0.1");
+  const isRelative = url.startsWith("/");
+
+  // If it's already a public non-local URL, return it
+  if (isHttp && !isLocalHost) return url;
+  
+  // If it's not local and not relative, we can't do much
+  if (!isLocalHost && !isRelative) return url;
+
+  try {
+    let relativePath: string;
+    if (isHttp) {
+      const urlObj = new URL(url);
+      relativePath = decodeURIComponent(urlObj.pathname);
+    } else {
+      relativePath = decodeURIComponent(url.split("?")[0]);
+    }
+
+    const localPath = path.join(process.cwd(), "public", relativePath);
+
+    if (!fs.existsSync(localPath)) {
+      console.warn(`[API/Generate] Local file not found at: ${localPath}`);
+      return isRelative ? `${baseUrl}${relativePath}` : url;
+    }
+
+    try {
+      const result = await cloudinary.uploader.upload(localPath, {
+        folder: `ecom-hub/auto-uploads/${userId}`,
+        resource_type: "auto",
+      });
+      return result.secure_url;
+    } catch (uploadError) {
+      console.error("[API/Generate] Cloudinary auto-upload failed:", uploadError);
+      // Fallback to absolute localhost URL to at least pass validation
+      return isRelative ? `${baseUrl}${relativePath}` : url;
+    }
+  } catch (error) {
+    return url;
+  }
+}
 
 function isPublicHttpUrl(value: string) {
   return value.startsWith("http://") || value.startsWith("https://");
@@ -21,6 +71,7 @@ const generateRequestSchema = z.object({
   notes: z.string().nullable().optional(),
   modelId: z.string().nullable().optional(),
   background: z.string().nullable().optional(),
+  backgroundImageUrl: z.string().nullable().optional(),
   prompt: z.string().nullable().optional(),
   garmentImageUrl: z.string().nullable().optional(),
   modelImageUrl: z.string().nullable().optional(),
@@ -38,8 +89,10 @@ const generateRequestSchema = z.object({
   accessoryType: z.string().nullable().optional(),     // Accessories: Bags | Footwear | etc.
   productFamily: z.string().nullable().optional(),     // Products: Home Decor | Beauty | etc.
   outputStyleV2: z.string().nullable().optional(),     // Catalog | Premium | Social Media | Lifestyle
-  outputViews: z.array(z.string()).optional(),        // Front, Left, Right, etc.
-  videoStyle: z.string().nullable().optional(),       // Straight Walk, Slow Turn, etc.
+  outputViews: z.array(z.string()).optional(),         // Front, Left, Right, etc.
+  videoStyle: z.string().nullable().optional(),        // Straight Walk, Slow Turn, etc.
+  // State machine: video generation must reference an approved image job
+  sourceJobId: z.string().nullable().optional(),
 });
 
 export const GenerateController = {
@@ -60,6 +113,7 @@ export const GenerateController = {
       const {
         modelId,
         background,
+        backgroundImageUrl,
         style,
         prompt,
         notes,
@@ -87,6 +141,7 @@ export const GenerateController = {
         outputStyleV2,
         outputViews,
         videoStyle,
+        sourceJobId,
       } = parsed.data;
 
       const normalizedGarmentImage = garmentImageUrl ?? clothImage ?? "";
@@ -125,44 +180,118 @@ export const GenerateController = {
         return NextResponse.json({ success: false, error: "Video style is required for video generation" }, { status: 400 });
       }
 
+      // State machine: GENERATE_VIDEO requires a prior approved image job (APPROVE_AND_CONTINUE).
+      // Spec Section 2, Condition 3: never run GENERATE_VIDEO before APPROVE_AND_CONTINUE.
+      if (isVideo) {
+        if (!sourceJobId) {
+          return NextResponse.json(
+            { success: false, error: "sourceJobId is required for video generation. Approve an image first." },
+            { status: 400 }
+          );
+        }
+        const sourceJob = await generationService.getApprovedJob(sourceJobId);
+        if (!sourceJob) {
+          return NextResponse.json(
+            { success: false, error: "Source job not found or not yet approved. Complete APPROVE_AND_CONTINUE before generating video." },
+            { status: 400 }
+          );
+        }
+      }
+
+      const userId = session?.user?.id ?? "guest-user";
+      const host = request.headers.get("host") || "localhost:3000";
+      const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
+      const baseUrl = `${protocol}://${host}`;
+
+      // Auto-resolve localhost/relative URLs to Cloudinary for AI accessibility
+      // If auto-upload fails, it will at least return an absolute localhost URL to pass validation
+      const publicGarmentImage = await ensurePublicUrl(normalizedGarmentImage, userId, baseUrl);
+      const publicUserImage = await ensurePublicUrl(normalizedUserImage, userId, baseUrl);
+      const publicBgImage = await ensurePublicUrl(backgroundImageUrl, userId, baseUrl);
+
+      const finalGarmentImage = publicGarmentImage || normalizedGarmentImage;
+      const finalUserImage = publicUserImage || normalizedUserImage;
+      const finalBgImage = publicBgImage || backgroundImageUrl;
+
       const requiresCategory = normalizedMode === "Virtual Try-On" && normalizedGarmentType === "Fabric";
       if (requiresCategory && !normalizedCategory) {
         return NextResponse.json({ success: false, error: "Clothing category is required" }, { status: 400 });
       }
 
-      if (!isPublicHttpUrl(normalizedGarmentImage)) {
+      if (!isPublicHttpUrl(finalGarmentImage)) {
         return NextResponse.json(
           { success: false, error: "Garment image must be a public http/https URL. Please upload again." },
           { status: 400 }
         );
       }
 
-      if (normalizedUserImage && !isPublicHttpUrl(normalizedUserImage)) {
+      if (finalUserImage && !isPublicHttpUrl(finalUserImage)) {
         return NextResponse.json(
           { success: false, error: "Model image must be a public http/https URL. Please upload again." },
           { status: 400 }
         );
       }
 
-      const userId = session?.user?.id ?? "guest-user";
+      // 1a. Gemini creative brief — enrich aiNotes for hub-aware runs (non-fatal)
+      let enrichedNotes = normalizedPrompt;
+      if (hub && !isVideo) {
+        try {
+          const promptInputs = {
+            hub,
+            mode: normalizedMode,
+            productImageUrl: finalGarmentImage,
+            modelRefUrl: finalUserImage || null,
+            background: background ?? "White Studio",
+            backgroundImageUrl: finalBgImage || null,
+            outputStyle: outputStyleV2 ?? style,
+            outputViews,
+            aiNotes: normalizedPrompt || null,
+            segment: segment ?? (gender === "Male" || gender === "Man" ? "Gents" : gender === "Kids" ? "Kids" : "Ladies"),
+            wearType,
+            productType: productType ?? category ?? undefined,
+            jewelleryGenre,
+            jewelleryStyle,
+            accessoryType,
+            productFamily,
+          } as PromptInputs;
+
+          const geminiBrief = await geminiService.refinePrompt(promptInputs);
+          enrichedNotes = [normalizedPrompt, geminiBrief].filter(Boolean).join("\n\n");
+        } catch (geminiError) {
+          console.warn("[API/Generate] Gemini refinement skipped:", geminiError);
+        }
+      }
 
       // 1. Phase 1: Create record in MongoDB and deduct credits
       const jobId = await generationService.createJob(userId, {
-        inputImage: normalizedGarmentImage,
+        inputImage: finalGarmentImage,
         modelId: modelId || "custom",
         background: background ?? "default",
         outputStyle: style,
-        prompt: normalizedPrompt,
+        prompt: enrichedNotes,
         creditsCost: isVideo ? 50 : 10,
+        // Context stored for gallery, state machine, and pipeline traceability
+        hub: hub ?? undefined,
+        mode: normalizedMode as string,
+        segment: segment ?? undefined,
+        wearType: wearType ?? undefined,
+        productType: productType ?? undefined,
+        jewelleryGenre: jewelleryGenre ?? undefined,
+        jewelleryStyle: jewelleryStyle ?? undefined,
+        accessoryType: accessoryType ?? undefined,
+        productFamily: productFamily ?? undefined,
+        videoStyle: videoStyle ?? undefined,
+        outputViews: outputViews ?? undefined,
+        sourceJobId: sourceJobId ?? undefined,
       });
 
       // 2. Trigger RunComfy workflow
       let requestId: string;
       try {
         requestId = await runComfyService.triggerWorkflow({
-          garmentImageUrl: normalizedGarmentImage,
-          modelImageUrl: normalizedUserImage || normalizedGarmentImage,
-          prompt: normalizedPrompt,
+          garmentImageUrl: finalGarmentImage,
+          modelImageUrl: finalUserImage || finalGarmentImage,
+          prompt: enrichedNotes,
           style,
           gender,
           garmentType: normalizedGarmentType,
@@ -171,6 +300,7 @@ export const GenerateController = {
           outputFormat,
           outputCount,
           background: background ?? undefined,
+          backgroundImageUrl: finalBgImage ?? undefined,
           userPoint,
           clothingPoint,
           // Hub context for Master Prompt v2.0

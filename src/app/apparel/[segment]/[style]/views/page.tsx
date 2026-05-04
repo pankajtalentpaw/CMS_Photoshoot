@@ -1,7 +1,8 @@
 "use client";
 
 import Footer from "@/frontend/components/Footer";
-import { Check, Sparkles, Wand2, AlertCircle, RefreshCcw } from "lucide-react";
+import { Check, Sparkles, Wand2, AlertCircle, RefreshCcw, Maximize2, X, Crosshair } from "lucide-react";
+import ProgressStepper from "@/frontend/components/ProgressStepper";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -38,27 +39,25 @@ export default function SelectOutputViewsPage() {
   const isCompleted = status === "completed";
 
   const getRecommendedViews = () => {
-    const s = segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
-    const styleKey = styleParam.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    const styles = TAXONOMY.apparel.styles[s] || [];
-    const matchedStyle = styles.find((st: { title: string; recommendedViews?: string[] }) => st.title === styleKey);
-    const viewTitles = matchedStyle?.recommendedViews || ["Front View", "Left View", "Right View", "Close-up", "Detail Shot"];
-    return viewTitles.slice(0, 5).map((title: string) => {
-      const id = title.toLowerCase().replace(/\s+/g, "-");
-      let viewStyles = "object-cover transition-all duration-700";
-      
-      // Dynamic CSS generation for categorized views based on prime image
-      if (id === "front-view") viewStyles += " object-[center_center] scale-100";
-      else if (id === "left-view") viewStyles += " object-[25%_center] scale-110";
-      else if (id === "right-view") viewStyles += " object-[75%_center] scale-110";
-      else if (id === "close-up") viewStyles += " object-[center_20%] scale-[1.5]";
-      else if (id === "detail-shot") viewStyles += " object-[center_60%] scale-[2]";
+    const viewsData = [
+      { id: "front-view", title: "Front View", image: "/assets/Select Output Views/Front View.jpg" },
+      { id: "left-view", title: "Left View", image: "/assets/Select Output Views/Left View.png" },
+      { id: "right-view", title: "Right View", image: "/assets/Select Output Views/Right View.png" },
+      { id: "close-up", title: "Close-up", image: "/assets/Select Output Views/Close-up.png" },
+      { id: "detail-shot", title: "Detail Shot", image: "/assets/Select Output Views/Detail Shot.png" },
+    ];
+    
+    return viewsData.map((view) => {
+      // Prioritize real generated output if available
+      const generatedImage = currentProject?.outputViews?.[currentProject?.generatedViewLabels?.indexOf(view.title) ?? -1];
+      const isGenerated = !!generatedImage;
 
       return {
-        id,
-        title,
-        previewImage: currentProject?.primeImage || "/assets/placeholder.jpg",
-        viewStyles
+        ...view,
+        previewImage: generatedImage || view.image,
+        viewStyles: "object-cover transition-all duration-700",
+        objectStyles: {},
+        isGenerated
       };
     });
   };
@@ -67,12 +66,15 @@ export default function SelectOutputViewsPage() {
   const [selectedViews, setSelectedViews] = useState<string[]>(
     (currentProject?.selectedOutputViews && currentProject.selectedOutputViews.length > 0)
       ? currentProject.selectedOutputViews
-      : views.slice(0, 5).map((v: { id: string }) => v.id)
+      : views.slice(0, 4).map((v: { id: string }) => v.id)
   );
   const [isCustomMode, setIsCustomMode] = useState(Boolean(currentProject?.isCustomViewEnabled));
   const [showMaxWarning, setShowMaxWarning] = useState(false);
   const [customPrompt, setCustomPrompt] = useState(currentProject?.customViewPrompt || "");
-  const MAX_VIEWS = 5;
+  const [activePreview, setActivePreview] = useState<{ title: string; image: string; styles?: React.CSSProperties } | null>(null);
+  const MAX_VIEWS = 4;
+
+  const customImage = currentProject?.outputViews?.[currentProject?.generatedViewLabels?.indexOf("Custom") ?? -1];
 
   const normalizeModelImageUrl = (value: string | undefined, fallback: string) => {
     if (value && (value.startsWith("http://") || value.startsWith("https://"))) {
@@ -108,7 +110,7 @@ export default function SelectOutputViewsPage() {
         customViewPrompt: customPrompt,
         generatedViewLabels,
       });
-      router.push(`/apparel/${segment}/${styleParam}/video-style`);
+      // Removed automatic redirect to allow user to see outputs "yaha par" (here)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompleted]);
@@ -126,7 +128,7 @@ export default function SelectOutputViewsPage() {
       segment: segment.charAt(0).toUpperCase() + segment.slice(1),
       wearType: styleParam.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
       style: currentProject?.styleId || "Catalog",
-      background: currentProject?.backgroundId || "Studio White",
+      background: currentProject?.backgroundId || "White Studio",
       outputFormat: totalCount === 1 ? "single" : totalCount <= 3 ? "triple" : "multi-view",
       outputCount: Math.min(totalCount, 6),
       outputViews: isCustomMode ? [...selectedViews, "custom"] : selectedViews,
@@ -156,11 +158,7 @@ export default function SelectOutputViewsPage() {
     <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30">
       <FlowHeader title="Output Views" />
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5">
-        <div className="flex justify-center gap-2 mb-12 mt-2">
-          {[1, 2, 3, 4, 5, 6].map((dot) => (
-            <div key={dot} className={`h-1 w-full max-w-[44px] rounded-full ${dot <= 5 ? "bg-gradient-to-r from-[#7C3AED] to-[#EC4899]" : "bg-white/10"}`} />
-          ))}
-        </div>
+        <ProgressStepper currentStep={3} partialStep={true} />
 
         {/* Generating overlay */}
         <AnimatePresence>
@@ -197,7 +195,7 @@ export default function SelectOutputViewsPage() {
           </motion.div>
         )}
 
-        <section className="mb-10 text-center flex flex-col items-center">
+        <section className="mb-10 text-center flex flex-col items-center mt-10">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="font-roboto font-bold text-[32px] md:text-[42px] leading-tight tracking-[-1px] text-white mb-3 px-4">
               Select Output Views
@@ -207,9 +205,11 @@ export default function SelectOutputViewsPage() {
             </p>
           </motion.div>
         </section>
-
-        <div className="grid grid-cols-2 gap-4 lg:gap-8 mb-10 max-w-[353px] lg:max-w-[800px] mx-auto">
-          {views.map((view: { id: string; title: string; previewImage: string; viewStyles: string }, idx: number) => {
+        
+        {mounted && (
+          <>
+            <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-10 max-w-[353px] lg:max-w-[800px] mx-auto">
+          {views.map((view: { id: string; title: string; previewImage: string; viewStyles: string; objectStyles: React.CSSProperties; isGenerated: boolean }, idx: number) => {
             const isSelected = selectedViews.includes(view.id);
             return (
               <motion.div key={view.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -217,27 +217,42 @@ export default function SelectOutputViewsPage() {
                 onClick={() => toggleView(view.id)}
                 className="flex flex-col items-center gap-3 group cursor-pointer"
               >
-                <div className={`relative w-full aspect-[166/207] rounded-[16px] overflow-hidden border transition-all duration-300 ${isSelected ? "border-[#7C4DFF] border-[2px] shadow-[0_0_20px_rgba(124,77,255,0.3)]" : "border-white/10 border-[1px] hover:border-white/30"}`}>
-                  {mounted && view.previewImage ? (
-                    <Image 
-                      src={view.previewImage} 
-                      alt={view.title} 
-                      fill 
-                      className={`${view.viewStyles} ${isSelected ? "" : "opacity-80 group-hover:opacity-100"}`} 
-                      loading="lazy" 
-                      unoptimized 
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-white/10" />
+                <div className={`relative w-full aspect-[4/5] rounded-[14px] p-[2px] transition-all duration-300 ${isSelected ? "bg-gradient-to-br from-[#00A3FF] to-[#D100FF] shadow-[0_0_20px_rgba(124,77,255,0.3)]" : "bg-transparent"}`}>
+                  <div className="relative w-full h-full rounded-[12px] overflow-hidden bg-[#0A0A0A] border border-white/5">
+                    {mounted && view.previewImage ? (
+                      <Image 
+                        src={view.previewImage} 
+                        alt={view.title} 
+                        fill 
+                        className={`${view.viewStyles} ${isSelected ? "" : "opacity-80 group-hover:opacity-100"}`} 
+                        style={view.objectStyles}
+                        loading="lazy" 
+                        unoptimized 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                        <Sparkles className="w-8 h-8 text-white/10" />
+                      </div>
+                    )}
+                    
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePreview({ title: view.title, image: view.previewImage, styles: view.objectStyles });
+                      }}
+                      className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#7C4DFF] z-20"
+                    >
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                  
+                  {isSelected && (
+                    <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-gradient-to-br from-[#00A3FF] to-[#D100FF] shadow-lg flex items-center justify-center z-20 border border-black/20">
+                      <Check className="w-3.5 h-3.5 text-white stroke-[4px]" />
                     </div>
                   )}
-                  
-                  <div className={`absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected ? "bg-[#7C4DFF] shadow-lg" : "bg-black/40 border border-white/20 backdrop-blur-md"}`}>
-                    {isSelected && <Check className="w-3 h-3 text-white stroke-[4px]" />}
-                  </div>
                 </div>
-                <span className={`font-roboto font-medium text-[13px] leading-[15px] transition-colors ${isSelected ? "text-white" : "text-[#9CA3AF] group-hover:text-white"}`}>
+                <span className={`font-roboto font-bold text-[14px] leading-[16px] transition-colors ${isSelected ? "text-white" : "text-white/80 group-hover:text-white"}`}>
                   {view.title}
                 </span>
               </motion.div>
@@ -251,52 +266,113 @@ export default function SelectOutputViewsPage() {
             onClick={toggleCustom}
             className="flex flex-col items-center gap-3 group cursor-pointer"
           >
-            <div className={`relative w-full aspect-[166/207] rounded-[16px] overflow-hidden border transition-all duration-300 bg-[#060B18] ${isCustomMode ? "border-[#7C4DFF] border-[2px] shadow-[0_0_20px_rgba(124,77,255,0.3)]" : "border-white/10 border-[1px] hover:border-white/30"}`}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 ${isCustomMode ? "bg-[#7C4DFF]/20 scale-110 shadow-[0_0_30px_rgba(124,77,255,0.1)]" : "bg-white/5 border border-white/5 group-hover:scale-110"}`}>
-                  <Sparkles className={`w-8 h-8 transition-colors duration-500 ${isCustomMode ? "text-[#7C4DFF]" : "text-white/20"}`} />
+            <div className={`relative w-full aspect-[4/5] rounded-[14px] p-[2px] transition-all duration-300 ${isCustomMode ? "bg-gradient-to-br from-[#00A3FF] to-[#D100FF] shadow-[0_0_20px_rgba(124,77,255,0.3)]" : "bg-transparent"}`}>
+              <div className="relative w-full h-full rounded-[12px] overflow-hidden bg-[#060B18] border border-white/5 flex items-center justify-center">
+                {customImage ? (
+                  <Image 
+                    src={customImage} 
+                    alt="Custom View" 
+                    fill 
+                    className="object-cover" 
+                    unoptimized 
+                  />
+                ) : (
+                  <div className={`w-[80px] h-[80px] rounded-[20px] flex items-center justify-center transition-all duration-500 bg-[#0A0A0A] border border-white/5`}>
+                    <Sparkles className="w-8 h-8 text-[#00A3FF]" fill="#00A3FF" />
+                  </div>
+                )}
+              </div>
+              
+              {isCustomMode && (
+                <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-gradient-to-br from-[#00A3FF] to-[#D100FF] shadow-lg flex items-center justify-center z-20 border border-black/20">
+                  <Check className="w-3.5 h-3.5 text-white stroke-[4px]" />
                 </div>
-              </div>
-              <div className={`absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${isCustomMode ? "bg-[#7C4DFF] shadow-lg" : "bg-black/40 border border-white/20 backdrop-blur-md"}`}>
-                {isCustomMode && <Check className="w-3 h-3 text-white stroke-[4px]" />}
-              </div>
+              )}
             </div>
-            <span className={`font-roboto font-medium text-[13px] leading-[15px] transition-colors ${isCustomMode ? "text-white" : "text-[#9CA3AF] group-hover:text-white"}`}>
+            <span className={`font-roboto font-bold text-[14px] leading-[16px] transition-colors ${isCustomMode ? "text-white" : "text-white/80 group-hover:text-white"}`}>
               Custom
             </span>
           </motion.div>
         </div>
 
-        <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-12 mb-12 max-w-[353px] lg:max-w-[800px] mx-auto w-full px-1">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="font-roboto font-bold text-[18px] text-white tracking-tight">AI Custom Angle</h2>
-            <span className="font-roboto font-normal text-[13px] text-[#9CA3AF] opacity-60">(Optional)</span>
+        {/* AI Custom Angle textarea */}
+        <div className="w-full max-w-[353px] lg:max-w-[800px] mx-auto px-1 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-[18px] font-bold text-white tracking-tight">AI Custom Angle</h2>
+            <span className="text-[13px] text-white/30 font-normal">(Optional)</span>
           </div>
-          <textarea 
-            value={customPrompt} 
+          <textarea
+            value={customPrompt}
             onChange={e => setCustomPrompt(e.target.value)}
-            className="w-full h-[120px] bg-[#0A0A0A] border border-white/10 rounded-[20px] p-5 font-roboto text-[15px] leading-relaxed text-white focus:border-[#7C4DFF]/50 focus:ring-1 focus:ring-[#7C4DFF]/50 outline-none transition-all placeholder:text-white/20 resize-none shadow-inner"
+            className="w-full h-[100px] bg-white/[0.03] border border-white/10 rounded-[22px] p-5 text-[14px] leading-relaxed text-white outline-none focus:border-white/20 transition-all placeholder:text-white/20 resize-none font-roboto"
             placeholder="E.g. Focus on the golden pallu details, add warm sunlight flare from left..."
           />
-          <div className="flex items-center gap-2 text-[#9CA3AF] mt-4 px-1">
-            <Sparkles className="w-3.5 h-3.5 text-[#7C4DFF]" />
-            <p className="text-[11px] font-medium tracking-wide italic opacity-80 uppercase">Professional output depends on the precision of your prompt.</p>
-          </div>
-        </motion.section>
+        </div>
 
-        <div className="w-full mt-10 mb-20 flex justify-center px-5">
-          <LoadingActionButton 
-            isLoading={isGenerating} 
-            onClick={handleGenerate}
-            className="w-full max-w-[353px] lg:max-w-[400px] h-[61px] rounded-full bg-figma-gradient font-roboto font-bold text-[18px] text-white shadow-[0_10px_40px_rgba(124,77,255,0.4)] hover:shadow-[0_10px_50px_rgba(124,77,255,0.6)] transition-all active:scale-[0.98]" 
-            disabled={totalSelectedCount === 0 || isGenerating}
+        <div className="w-full mt-2 mb-20 flex justify-center px-5">
+          <LoadingActionButton
+            isLoading={isGenerating}
+            onClick={isCompleted ? () => router.push(`/apparel/${segment}/${styleParam}/output-results`) : handleGenerate}
+            className="w-full max-w-[353px] lg:max-w-[800px] h-[61px] rounded-[16px] text-[18px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] hover:opacity-90 font-bold tracking-wide shadow-none"
+            disabled={(totalSelectedCount === 0 && !isCompleted) || isGenerating}
           >
-            Generate Outputs
+            {isCompleted ? "View Results" : "Generate Outputs"}
           </LoadingActionButton>
         </div>
+        </>
+      )}
 
       </main>
       <Footer />
+
+      {/* Preview Overlay */}
+      <AnimatePresence>
+        {activePreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-5 cursor-zoom-out"
+            onClick={() => setActivePreview(null)}
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setActivePreview(null); }}
+              className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full border border-white/10 transition-colors z-[210]"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-2xl aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image 
+                src={activePreview.image} 
+                alt="Preview" 
+                fill 
+                className="object-cover"
+                style={activePreview.styles}
+                unoptimized
+              />
+              {!activePreview.styles && (
+                 <div className="absolute top-4 left-4 bg-[#7C4DFF] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg">
+                   Final Output
+                 </div>
+              )}
+            </motion.div>
+            
+            <div className="mt-8 text-center">
+              <h3 className="text-xl font-bold text-white mb-1">{activePreview.title}</h3>
+              <p className="text-[#7C4DFF] text-[10px] font-bold uppercase tracking-[0.2em]">
+                {activePreview.styles ? "Simulation Preview • Accurate Framing" : "High-Fidelity AI Render"}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

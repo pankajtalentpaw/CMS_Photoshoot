@@ -4,7 +4,7 @@ import FlowHeader from "@/frontend/components/FlowHeader";
 import ProgressStepper from "@/frontend/components/ProgressStepper";
 import Footer from "@/frontend/components/Footer";
 import LoadingActionButton from "@/frontend/components/LoadingActionButton";
-import { Check, Sparkles, AlertCircle, RefreshCcw, Film } from "lucide-react";
+import { Check, Sparkles, AlertCircle, RefreshCcw, Film, Crosshair } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -29,11 +29,11 @@ export default function SelectOutputViewsPage() {
   const previewImage = currentProject?.primeImage || "/assets/placeholder-view.jpg";
 
   const views = [
-    { id: "front-view", title: "Front View", image: previewImage },
-    { id: "side-view", title: "Side View", image: previewImage },
-    { id: "back-view", title: "Back View", image: previewImage },
-    { id: "detail-shot", title: "Detail Shot", image: previewImage },
-    { id: "close-up", title: "Close-up", image: previewImage },
+    { id: "front-view", title: "Front View", image: "/assets/Select Output Views/Front View.jpg" },
+    { id: "side-view", title: "Side View", image: "/assets/Select Output Views/Left View.png" },
+    { id: "back-view", title: "Back View", image: "/assets/Select Output Views/Right View.png" },
+    { id: "detail-shot", title: "Detail Shot", image: "/assets/Select Output Views/Detail Shot.png" },
+    { id: "close-up", title: "Close-up", image: "/assets/Select Output Views/Close-up.png" },
   ];
 
   const isCustomMode = selectedViews.includes("custom");
@@ -67,7 +67,7 @@ export default function SelectOutputViewsPage() {
       mode: "AI Studio",
       hub: "Apparel", // Default for generic results, or detect from context
       style: currentProject?.styleId || "Catalog",
-      background: currentProject?.backgroundId || "Studio White",
+      background: currentProject?.backgroundId || "White Studio",
       outputFormat: selectedViews.length <= 1 ? "single" : selectedViews.length <= 3 ? "triple" : "multi-view",
       outputCount: Math.min(selectedViews.length, 6),
       outputViews: selectedViews,

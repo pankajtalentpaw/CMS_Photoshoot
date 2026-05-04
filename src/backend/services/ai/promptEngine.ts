@@ -1,32 +1,11 @@
-import {
-  PromptInputs,
-  ApparelInputs,
-} from "./types";
-
-import { buildVirtualTryOnPrompt } from "./virtual-try-on";
-import { buildAiStudioPrompt } from "./ai-studio";
-
 export * from "./types";
+export * from "./hubs/Apparel";
+export * from "./hubs/Jewellery";
+export * from "./hubs/Accessories";
+export * from "./hubs/Products";
+export * from "./hubs/VirtualTryOn";
+export * from "./videoPrompts";
 
-/**
- * buildMasterPrompt
- * Master router for all AI prompt generation.
- * Type-safe, extensible, and production-ready.
- */
-export function buildMasterPrompt(inputs: PromptInputs): string {
-  // 🔒 Explicit routing (recommended)
-  if (inputs.mode === "Virtual Try-On") {
-    // Narrow type safely (no `any`)
-    if (inputs.hub === "Apparel") {
-      return buildVirtualTryOnPrompt(inputs as ApparelInputs);
-    }
+// Master prompt builder has been moved to the central prompts module.
+export { buildMasterPrompt } from "@/backend/prompts";
 
-    // Future: support VTON for other hubs
-    throw new Error(
-      `[VTON] Unsupported hub "${inputs.hub}". Currently only Apparel is supported.`
-    );
-  }
-
-  // 🎯 Default → AI Studio (editorial / creative generation)
-  return buildAiStudioPrompt(inputs);
-}

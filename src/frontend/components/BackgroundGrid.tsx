@@ -11,18 +11,18 @@ interface BackgroundGridProps {
 
 const BackgroundGrid = ({ selectedTitle, onSelect, onPreview }: BackgroundGridProps) => {
   const backgrounds = [
-    { title: "White Studio", image: "/bg_white_studio.png" },
-    { title: "Premium Studio", image: "/bg_premium_studio.png" },
-    { title: "Saree Festival", image: "/bg_saree_festival.png" },
-    { title: "Outdoor", image: "/bg_outdoor.png" },
-    { title: "Modern Office", image: "/bg_modern_office.png" },
+    { title: "White Studio", image: "/assets/Bg Images/White Studio.jpg" },
+    { title: "Premium Studio", image: "/assets/Bg Images/Premium Studio.jpg" },
+    { title: "Festival Studio", image: "/assets/Bg Images/Festival Studio.jpg" },
+    { title: "Outdoor", image: "/assets/Bg Images/Outdoor.jpg" },
+    { title: "Modern Office", image: "/assets/Bg Images/Modern Office.jpg" },
   ];
 
   return (
     <div
       role="radiogroup"
       aria-label="Select a background style"
-      className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4"
+      className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4"
     >
       {backgrounds.map((bg, idx) => {
         const isSelected = selectedTitle === bg.title;

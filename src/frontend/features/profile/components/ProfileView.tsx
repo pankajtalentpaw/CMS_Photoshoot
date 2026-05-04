@@ -34,7 +34,7 @@ import {
 
 function ProfilePageContent() {
   const router = useRouter();
-  const { user, userProfile, logout, updateProfile } = useAuth();
+  const { user, userProfile, generationStats, logout, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'wallet'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,16 +66,63 @@ function ProfilePageContent() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAvatar(URL.createObjectURL(file));
+      
+      // Optimization: show local preview immediately
+      const localUrl = URL.createObjectURL(file);
+      setAvatar(localUrl);
+
+      // 1. Upload to Cloudinary
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        setIsSaving(true);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        
+        if (data.success && data.url) {
+          // 2. Save the URL to user profile
+          const result = await updateProfile({ profileImage: data.url });
+          if (!result.success) {
+            setSaveError(result.error ?? "Failed to save profile image.");
+          } else {
+             // Sync successful
+             setAvatar(data.url);
+          }
+        } else {
+          setSaveError(data.error ?? "Upload failed");
+          setAvatar(userProfile?.profileImage || null);
+        }
+      } catch (err) {
+        setSaveError("An error occurred during upload.");
+        setAvatar(userProfile?.profileImage || null);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
-  const handleRemoveAvatar = () => {
-    setAvatar(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleRemoveAvatar = async () => {
+    try {
+      setIsSaving(true);
+      const result = await updateProfile({ profileImage: "" });
+      if (result.success) {
+        setAvatar(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } else {
+        setSaveError(result.error ?? "Failed to remove profile image.");
+      }
+    } catch (err) {
+      setSaveError("An error occurred.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Real user data — fetched from MongoDB profile via AuthContext
@@ -112,6 +159,7 @@ function ProfilePageContent() {
       state: userProfile?.state || "",
       city: userProfile?.city || "",
     });
+    setAvatar(userProfile?.profileImage || null);
   }, [userProfile, user]);
 
   const handleSave = async () => {
@@ -184,16 +232,16 @@ function ProfilePageContent() {
           
           <div className="flex justify-between items-end pt-2">
             <div className="flex flex-col text-center border-r border-white/10 pr-4">
-              <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1">Gifted</span>
-              <span className="text-white font-ubuntu font-bold text-lg leading-none">0</span>
+              <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1">Images</span>
+              <span className="text-white font-ubuntu font-bold text-lg leading-none">{generationStats?.imageCount ?? 0}</span>
             </div>
             <div className="flex flex-col text-center border-r border-white/10 px-4">
-               <span className="text-[#A52FFF] text-[10px] font-bold uppercase tracking-wider mb-1">Paid</span>
-               <span className="text-[#A52FFF] font-ubuntu font-bold text-lg leading-none">250</span>
+               <span className="text-[#A52FFF] text-[10px] font-bold uppercase tracking-wider mb-1">Videos</span>
+               <span className="text-[#A52FFF] font-ubuntu font-bold text-lg leading-none">{generationStats?.videoCount ?? 0}</span>
             </div>
             <div className="flex flex-col text-center pl-4">
-               <span className="text-white text-[10px] font-bold uppercase tracking-wider mb-1">Total</span>
-               <span className="text-white font-ubuntu font-bold text-lg leading-none">250</span>
+               <span className="text-white text-[10px] font-bold uppercase tracking-wider mb-1">Credits</span>
+               <span className="text-white font-ubuntu font-bold text-lg leading-none">{userProfile?.credits ?? 0}</span>
             </div>
           </div>
         </div>
@@ -411,7 +459,7 @@ function ProfilePageContent() {
         )}
 
         {activeTab === 'wallet' && (
-          <WalletView setIsBuyCreditsOpen={setIsBuyCreditsOpen} />
+          <WalletView setIsBuyCreditsOpen={setIsBuyCreditsOpen} credits={userProfile?.credits ?? 0} />
         )}
       </main>
 
@@ -453,14 +501,14 @@ function ProfilePageContent() {
               <div className="p-6 pt-2 overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-8">
                 
                 {/* User Details */}
-                <ReceiptRow label="Name" value="GADU SAIHARSHA" bold />
-                <ReceiptRow label="Email" value="saiharshagadu@gmail.com" bold />
-                <ReceiptRow label="Phone" value="8374939447" bold />
-                <ReceiptRow label="Organization" value="Aditya" bold />
-                <ReceiptRow label="Working Status" value="Student" bold />
-                <ReceiptRow label="City" value="Mandapeta" bold />
-                <ReceiptRow label="State" value="Andhra Pradesh" bold />
-                <ReceiptRow label="Company" value="-" bold />
+                <ReceiptRow label="Name" value={`${userProfile?.firstName} ${userProfile?.lastName}`.trim() || "User"} bold />
+                <ReceiptRow label="Email" value={userProfile?.email || user?.email || ""} bold />
+                <ReceiptRow label="Phone" value={userProfile?.phoneNumber || "-"} bold />
+                <ReceiptRow label="Organization" value={userProfile?.organizationName || "-"} bold />
+                <ReceiptRow label="Working Status" value={userProfile?.workStatus || "-"} bold />
+                <ReceiptRow label="City" value={userProfile?.city || "-"} bold />
+                <ReceiptRow label="State" value={userProfile?.state || "-"} bold />
+                <ReceiptRow label="Company" value={userProfile?.organizationName || "-"} bold />
 
                 <div className="h-px w-full bg-white/10 my-3" />
 
@@ -700,7 +748,7 @@ const InputField = ({ label, icon: Icon, value, isEditing, type = "text", onChan
 };
 
 // Wallet Ledger View Component
-const WalletView = ({ setIsBuyCreditsOpen }: { setIsBuyCreditsOpen: any }) => {
+const WalletView = ({ setIsBuyCreditsOpen, credits }: { setIsBuyCreditsOpen: any; credits: number }) => {
   const ledgerData = [
     { date: "Today", time: "12:00 AM", type: "DEBIT", source: "Weekly", amount: "0", note: "Weekly Reset (Fresh Allowance)" },
     { date: "Feb 10, 2024", time: "12:00 AM", type: "DEBIT", source: "Weekly", amount: "-8500", note: "Weekly Unused Expiry" },
@@ -745,11 +793,11 @@ const WalletView = ({ setIsBuyCreditsOpen }: { setIsBuyCreditsOpen: any }) => {
         </div>
         <div className="bg-[#1A3022]/80 border border-[#34A853]/20 rounded-xl p-5 shadow-lg">
           <span className="text-[#34A853] text-[11px] font-bold uppercase tracking-wider block mb-2">Paid Credits</span>
-          <span className="text-[#34A853] text-3xl font-ubuntu font-bold">250</span>
+          <span className="text-[#34A853] text-3xl font-ubuntu font-bold">{credits}</span>
         </div>
         <div className="bg-[#1A1A1A] border border-white/10 rounded-xl p-5 shadow-lg">
           <span className="text-white/60 text-[11px] font-bold uppercase tracking-wider block mb-2">Total Balance</span>
-          <span className="text-white text-3xl font-ubuntu font-bold">250</span>
+          <span className="text-white text-3xl font-ubuntu font-bold">{credits}</span>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import FlowHeader from "@/frontend/components/FlowHeader";
 import Footer from "@/frontend/components/Footer";
 import LoadingActionButton from "@/frontend/components/LoadingActionButton";
+import ProgressStepper from "@/frontend/components/ProgressStepper";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
@@ -27,7 +28,7 @@ export default function ApprovePrimeImagePage() {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const { currentProject, updateProject, spendCredits } = useProject();
-  const { status, outputImage, error, generate, reset } = useGenerationPolling();
+  const { status, outputImage, error, generate, reset, jobId } = useGenerationPolling();
   const [hasBootstrappedGeneration, setHasBootstrappedGeneration] = useState(false);
 
   const isGenerating = status === "submitting" || status === "polling";
@@ -48,7 +49,8 @@ export default function ApprovePrimeImagePage() {
   };
 
   const normalizeModelImageUrl = (value: string | undefined, fallback: string) => {
-    if (value && (value.startsWith("http://") || value.startsWith("https://"))) {
+    if (!value) return fallback;
+    if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) {
       return value;
     }
     return fallback;
@@ -66,7 +68,8 @@ export default function ApprovePrimeImagePage() {
       segment: segment.charAt(0).toUpperCase() + segment.slice(1),
       wearType: style.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
       style: baseProject.styleId || "Catalog",
-      background: baseProject.backgroundId || "Studio White",
+      background: baseProject.backgroundId || "White Studio",
+      backgroundImageUrl: baseProject.backgroundImageUrl,
       outputFormat: "single" as const,
       outputCount: 1,
       prompt: [chips.join(", "), note].filter(Boolean).join(". "),
@@ -93,6 +96,13 @@ export default function ApprovePrimeImagePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProject?.primeImage, hasBootstrappedGeneration]);
+
+  // Capture jobId early
+  useEffect(() => {
+    if (jobId && jobId !== currentProject?.sourceJobId) {
+      updateProject({ sourceJobId: jobId });
+    }
+  }, [jobId, currentProject?.sourceJobId]);
 
   // When generation completes, save prime image to project context
   useEffect(() => {
@@ -146,12 +156,7 @@ export default function ApprovePrimeImagePage() {
       <FlowHeader title="Generated Result" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
-        {/* Progress Dots (Figma Style) */}
-        <div className="flex gap-2 mb-8">
-          {[1, 2, 3, 4, 5].map((dot) => (
-            <div key={dot} className={`h-1 w-8 rounded-full ${dot <= 4 ? "bg-[#7C4DFF]" : "bg-white/10"}`} />
-          ))}
-        </div>
+        <ProgressStepper currentStep={2} partialStep={true} />
 
         <AnimatePresence mode="wait">
           {isGenerating ? (
@@ -204,17 +209,14 @@ export default function ApprovePrimeImagePage() {
               className="flex-1 w-full flex flex-col items-center pb-20"
             >
               <div
-                onDoubleClick={() => setShowFullPreview(true)}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                className="relative w-full aspect-[4/5] max-w-full sm:max-w-[353px] rounded-[24px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-8 border border-white/5 group cursor-zoom-in transition-all"
+                className="relative w-full aspect-[4/5] max-w-full sm:max-w-[353px] rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-8 border border-white/5 group transition-all"
               >
                 {displayImage ? (
                   <Image
                     src={displayImage}
                     alt="Prime Image Result"
                     fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="object-cover"
                     priority
                     unoptimized
                   />
@@ -224,34 +226,36 @@ export default function ApprovePrimeImagePage() {
                   </div>
                 )}
 
+                {/* Overlay Icons from Screenshot */}
                 <div className="absolute top-4 right-4 flex flex-col gap-2">
                   <button
                     onClick={() => setShowFullPreview(true)}
-                    className="w-10 h-10 rounded-full bg-[#E2E2E8]/80 hover:bg-[#E2E2E8] backdrop-blur-md flex items-center justify-center transition-all"
+                    className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all"
                   >
-                    <ZoomIn className="w-5 h-5 text-black" />
+                    <ZoomIn className="w-5 h-5 text-white" />
                   </button>
                   <button 
                     onClick={() => setShowFullPreview(true)}
-                    className="w-10 h-10 rounded-full bg-[#E2E2E8]/80 hover:bg-[#E2E2E8] backdrop-blur-md flex items-center justify-center transition-all"
+                    className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all"
                   >
-                    <Maximize className="w-5 h-5 text-black" />
+                    <Maximize className="w-5 h-5 text-white" />
                   </button>
                 </div>
               </div>
 
               {/* Action Buttons under Image */}
-              <div className="w-full max-w-full sm:max-w-[353px] grid grid-cols-2 gap-3 mb-10">
+              {/* Action Buttons under Image */}
+              <div className="w-full max-w-full sm:max-w-[353px] grid grid-cols-2 gap-4 mb-6">
                 <button
                   onClick={handleRegenerate}
-                  className="h-[48px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-medium text-sm"
+                  className="h-[54px] rounded-[18px] bg-white/[0.03] border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-bold text-sm"
                 >
                   <RefreshCcw className="w-4 h-4" />
                   Regenerate
                 </button>
                 <button
-                  onClick={() => setIsRegenerateMode(true)}
-                  className="h-[48px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-medium text-sm"
+                  onClick={() => setIsRegenerateMode(!isRegenerateMode)}
+                  className="h-[54px] rounded-[18px] bg-white/[0.03] border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-bold text-sm"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Edit Prompt
@@ -259,11 +263,11 @@ export default function ApprovePrimeImagePage() {
               </div>
 
               {/* Main Approve Button */}
-              <div className="w-full max-w-full sm:max-w-[353px]">
+              <div className="w-full max-w-full sm:max-w-[353px] mb-10">
                 <LoadingActionButton
                   isLoading={isApproving}
                   onClick={handleApprove}
-                  className="w-full h-[61px] text-[18px] font-bold rounded-full shadow-[0_0_30px_rgba(124,77,255,0.3)]"
+                  className="w-full h-[61px] text-[18px]"
                   disabled={!displayImage}
                 >
                   Approve & Continue
@@ -279,14 +283,7 @@ export default function ApprovePrimeImagePage() {
                     className="w-full max-w-full sm:max-w-[353px] overflow-hidden mt-6"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto font-semibold text-base text-white">Refine & Regenerate</h3>
-                      <button
-                        onClick={() => setShowTextBox(!showTextBox)}
-                        className="flex items-center gap-1 text-[#7C4DFF] text-xs font-medium"
-                      >
-                        <MessageSquare className="w-3 h-3" />
-                        {showTextBox ? "Hide Note" : "Add Note"}
-                      </button>
+                      <h3 className="font-roboto font-semibold text-base text-white">Refine AI Director Prompt</h3>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-6">

@@ -9,6 +9,17 @@ interface SelectionState {
   styleId: string | null;
   productCategory: string | null;
   prompt: string;
+  // Hub-aware fields
+  hub: string | null;
+  segment: string | null;
+  wearType: string | null;
+  productType: string | null;
+  jewelleryGenre: string | null;
+  jewelleryStyle: string | null;
+  accessoryType: string | null;
+  productFamily: string | null;
+  outputViews: string[];
+  videoStyle: string | null;
 }
 
 interface GenerationContextType {
@@ -20,6 +31,8 @@ interface GenerationContextType {
   setUploadedImageUrl: (url: string | null) => void;
   currentJobId: string | null;
   setCurrentJobId: (id: string | null) => void;
+  approvedJobId: string | null;
+  setApprovedJobId: (id: string | null) => void;
   resetGeneration: () => void;
 }
 
@@ -27,26 +40,39 @@ const GenerationContext = createContext<GenerationContextType | undefined>(undef
 
 const STORAGE_KEY = "digital_atelier_generation_state";
 
+const DEFAULT_SELECTION: SelectionState = {
+  modelId: null,
+  backgroundId: null,
+  styleId: null,
+  productCategory: null,
+  prompt: "",
+  hub: null,
+  segment: null,
+  wearType: null,
+  productType: null,
+  jewelleryGenre: null,
+  jewelleryStyle: null,
+  accessoryType: null,
+  productFamily: null,
+  outputViews: [],
+  videoStyle: null,
+};
+
 export const GenerationProvider = ({ children }: { children: ReactNode }) => {
-  const [selectionState, setSelectionState] = useState<SelectionState>({
-    modelId: null,
-    backgroundId: null,
-    styleId: null,
-    productCategory: null,
-    prompt: "",
-  });
+  const [selectionState, setSelectionState] = useState<SelectionState>(DEFAULT_SELECTION);
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [approvedJobId, setApprovedJobId] = useState<string | null>(null);
 
   // 1. Load from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        setSelectionState(JSON.parse(saved));
+        setSelectionState({ ...DEFAULT_SELECTION, ...JSON.parse(saved) });
       } catch (e) {
         console.error("Failed to parse saved state", e);
       }
@@ -66,30 +92,27 @@ export const GenerationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetGeneration = () => {
-    setSelectionState({
-      modelId: null,
-      backgroundId: null,
-      styleId: null,
-      productCategory: null,
-      prompt: "",
-    });
+    setSelectionState(DEFAULT_SELECTION);
     setRawFile(null);
     setUploadedImageUrl(null);
     setCurrentJobId(null);
+    setApprovedJobId(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
   return (
-    <GenerationContext.Provider value={{ 
-      selectionState, 
-      updateSelection, 
+    <GenerationContext.Provider value={{
+      selectionState,
+      updateSelection,
       rawFile,
       setRawFile,
-      uploadedImageUrl, 
+      uploadedImageUrl,
       setUploadedImageUrl,
       currentJobId,
       setCurrentJobId,
-      resetGeneration 
+      approvedJobId,
+      setApprovedJobId,
+      resetGeneration
     }}>
       {children}
     </GenerationContext.Provider>

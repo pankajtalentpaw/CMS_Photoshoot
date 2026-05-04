@@ -10,6 +10,10 @@ import LoadingActionButton from "@/frontend/components/LoadingActionButton";
 import { Skeleton } from "@/frontend/components/ui/Skeleton";
 import ProductTag from "@/frontend/components/ProductTag";
 
+import { useProject } from "@/frontend/context/ProjectContext";
+import { storageService } from "@/backend/services/storageService";
+import { useSession } from "next-auth/react";
+
 // Dynamic components
 const UploadZone = dynamic(() => import("@/frontend/components/UploadZone"), {
   ssr: false,
@@ -33,10 +37,15 @@ export default function AccessoriesUnifiedSetupPage() {
   const style = (params.style as string) || "bags";
   const product = searchParams.get("product") || "Handbag";
 
+  const { updateProject } = useProject();
+  const { data: session } = useSession();
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>("1");
+  const [selectedModelImg, setSelectedModelImg] = useState<string>("/Model_1.jpg");
   const [selectedBackground, setSelectedBackground] = useState<string>("Premium Studio");
   const [selectedOutputStyle, setSelectedOutputStyle] = useState<string>("Catalog");
+  const [productFile, setProductFile] = useState<File | null>(null);
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -44,9 +53,27 @@ export default function AccessoriesUnifiedSetupPage() {
   const outputStyles = ["Catalog", "Premium", "Social Media", "Lifestyle"];
 
   const handleGenerate = async () => {
+    if (!productFile) return;
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    router.push(`/accessories/${style}/approve-prime?product=${product}`);
+    
+    try {
+      const userId = session?.user?.id ?? "guest-user";
+      const productUrl = await storageService.uploadGarment(userId, productFile);
+      
+      updateProject({
+        productImageUrl: productUrl,
+        garmentImageUrl: productUrl,
+        modelImageUrl: selectedModelImg || "",
+        modelId: selectedModel,
+        backgroundId: selectedBackground,
+        styleId: selectedOutputStyle,
+      });
+
+      router.push(`/accessories/${style}/approve-prime?product=${product}`);
+    } catch (error) {
+      console.error("Failed to generate accessories asset:", error);
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -54,24 +81,24 @@ export default function AccessoriesUnifiedSetupPage() {
       <FlowHeader title="AI Setup" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col">
-        <ProgressStepper currentStep={5} />
+        <ProgressStepper currentStep={1} partialStep={true} />
 
         <div className="flex flex-col gap-12 mt-10 mb-20">
           {/* Section 6.5: Upload + Preset Selection */}
           <section aria-labelledby="upload-section-title">
             <div className="mb-6">
-              <h1 id="upload-section-title" className="font-roboto font-semibold text-2xl text-white mb-2 uppercase tracking-wide">{product} Setup</h1>
-              <p className="text-sm text-[#99A1AF]">Upload your raw product image for {style.charAt(0).toUpperCase() + style.slice(1)}</p>
+              <h1 id="upload-section-title" className="font-roboto font-semibold text-2xl text-white mb-2 capitalize">{product} Setup</h1>
+              <p className="text-sm text-[#99A1AF]">Upload your product for {style} shoot</p>
             </div>
-            <UploadZone />
+            <UploadZone onFileSelect={setProductFile} />
           </section>
 
           <section aria-labelledby="model-section-title">
-            <h2 id="model-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Select Model / Presentation</h2>
+            <h2 id="model-section-title" className="font-roboto font-semibold text-xl text-white mb-6">Select Model</h2>
             <div className="-mx-5 px-5">
               <ModelScroll
                 selectedId={selectedModel}
-                onSelect={(m) => setSelectedModel(m.id)}
+                onSelect={(m) => { setSelectedModel(m.id); setSelectedModelImg(m.image); }}
                 onPreview={(m) => { setPreviewImage(m.image); setIsPreviewOpen(true); }}
               />
             </div>
@@ -114,6 +141,7 @@ export default function AccessoriesUnifiedSetupPage() {
             <LoadingActionButton
               isLoading={isGenerating}
               onClick={handleGenerate}
+              disabled={isGenerating || !productFile}
               className="w-full h-[61px] text-[18px]"
             >
               Generate Prime Image

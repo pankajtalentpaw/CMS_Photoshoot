@@ -27,8 +27,8 @@ export default function ProductsApprovePrimePage() {
   const [isRegenerateMode, setIsRegenerateMode] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const { currentProject, setProjectData, spendCredits } = useProject();
-  const { status, outputImage, error, generate, reset } = useGenerationPolling();
+  const { currentProject, setProjectData, updateProject, spendCredits } = useProject();
+  const { status, outputImage, error, generate, reset, jobId } = useGenerationPolling();
 
   const isGenerating = status === "submitting" || status === "polling";
   const isFailed = status === "failed";
@@ -49,7 +49,7 @@ export default function ProductsApprovePrimePage() {
     hub: "Products" as const,
     productFamily: style.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
     style: currentProject?.styleId || "Catalog",
-    background: currentProject?.backgroundId || "Studio White",
+    background: currentProject?.backgroundId || "White Studio",
     outputFormat: "single" as const,
     outputCount: 1,
     category: product,
@@ -62,9 +62,19 @@ export default function ProductsApprovePrimePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Capture jobId early
+  useEffect(() => {
+    if (jobId && jobId !== currentProject?.sourceJobId) {
+      updateProject({ sourceJobId: jobId });
+    }
+  }, [jobId, currentProject?.sourceJobId]);
+
   useEffect(() => {
     if (status === "completed" && outputImage) {
-      setProjectData({ ...(currentProject || {}), primeImage: outputImage });
+      setProjectData({ 
+        ...(currentProject || {}), 
+        primeImage: outputImage,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, outputImage]);
@@ -87,9 +97,9 @@ export default function ProductsApprovePrimePage() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-black text-white">
-      <FlowHeader title="Approve Result" />
+      <FlowHeader title="Generated Result" />
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
-        <ProgressStepper currentStep={7} />
+        <ProgressStepper currentStep={2} partialStep={true} />
         <AnimatePresence mode="wait">
           {isGenerating ? (
             <motion.div key="gen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -119,18 +129,26 @@ export default function ProductsApprovePrimePage() {
               className="w-full flex flex-col items-center py-10"
             >
               <div
-                onDoubleClick={() => setShowFullPreview(true)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => setShowFullPreview(true), 500); }}
-                onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
-                className="relative w-full max-w-full sm:max-w-[353px] aspect-square rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(124,77,255,0.2)] border border-white/10 mb-10 group cursor-zoom-in transition-all"
+                className="relative w-full max-w-full sm:max-w-[353px] aspect-square rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-8 border border-white/10 group transition-all"
               >
                 {displayImage ? (
-                  <Image src={displayImage} alt="Generated Prime" fill className="object-cover transition-transform group-hover:scale-105" priority unoptimized />
+                  <Image src={displayImage} alt="Generated Prime" fill className="object-cover" priority unoptimized />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-white/5">
                     <Sparkles className="w-10 h-10 text-[#7C4DFF]/40 animate-pulse" />
                   </div>
                 )}
+                
+                {/* Overlay Icons from Screenshot */}
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                  <button onClick={() => setShowFullPreview(true)} className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all">
+                    <X className="w-5 h-5 text-white rotate-45" /> {/* Search icon replacement */}
+                  </button>
+                  <button onClick={() => setShowFullPreview(true)} className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all">
+                    <div className="w-4 h-4 border-2 border-white rounded-sm" /> {/* Fullscreen icon replacement */}
+                  </button>
+                </div>
+
                 <AnimatePresence>
                   {feedback.length > 0 && (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -146,28 +164,36 @@ export default function ProductsApprovePrimePage() {
                 </AnimatePresence>
               </div>
 
-              <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-4 mb-10">
-                <LoadingActionButton isLoading={isApproving} onClick={handleApprove}
-                  className="w-full h-[61px] rounded-full text-[18px] font-bold"
-                  icon={<Check className="w-5 h-5" />} disabled={!displayImage}
-                >Approve and Continue</LoadingActionButton>
-                {!isRegenerateMode && (
-                  <button onClick={() => setIsRegenerateMode(true)} className="text-[#7C4DFF] text-sm font-medium hover:underline">
-                    Not happy with the result?
+              <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-6 mb-10">
+                {/* Secondary Actions row */}
+                <div className="flex flex-row gap-4">
+                  <button 
+                    onClick={handleRegenerate}
+                    className="flex-1 h-[54px] bg-white/[0.03] border border-white/10 rounded-[18px] flex items-center justify-center gap-2 text-white/90 font-bold text-sm hover:bg-white/5 transition-all"
+                  >
+                    <RefreshCcw className="w-4 h-4" /> Regenerate
                   </button>
-                )}
+                  <button 
+                    onClick={() => setIsRegenerateMode(!isRegenerateMode)}
+                    className="flex-1 h-[54px] bg-white/[0.03] border border-white/10 rounded-[18px] flex items-center justify-center gap-2 text-white/90 font-bold text-sm hover:bg-white/5 transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Edit Prompt
+                  </button>
+                </div>
+
+                <LoadingActionButton isLoading={isApproving} onClick={handleApprove}
+                  className="w-full h-[61px] text-[18px]" disabled={!displayImage}>
+                  Approve & Continue
+                </LoadingActionButton>
               </div>
 
               <AnimatePresence>
                 {isRegenerateMode && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                    className="w-full max-w-full sm:max-w-[353px] overflow-hidden"
+                    className="w-full max-w-full sm:max-w-[353px] overflow-hidden mb-10"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto font-semibold text-base text-white">Refine & Regenerate</h3>
-                      <button onClick={() => setShowTextBox(!showTextBox)} className="flex items-center gap-1 text-[#7C4DFF] text-xs font-medium">
-                        <MessageSquare className="w-3 h-3" /> {showTextBox ? "Hide Note" : "Add Note"}
-                      </button>
+                      <h3 className="font-roboto font-semibold text-base text-white">Refine AI Director Prompt</h3>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-6">
                       {Object.keys(chipPrompts).map(chip => (

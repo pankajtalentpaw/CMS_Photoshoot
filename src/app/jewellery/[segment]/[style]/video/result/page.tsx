@@ -5,105 +5,83 @@ import Footer from "@/frontend/components/Footer";
 import { Download, Share2, Play, Plus, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useProject } from "@/frontend/context/ProjectContext";
+import ProgressStepper from "@/frontend/components/ProgressStepper";
 
 export default function JewelleryVideoResultPage() {
   const params = useParams();
+  const router = useRouter();
   const { currentProject } = useProject();
   const segment = (params.segment as string) || "bridal";
   const style = (params.style as string) || "sets-and-pieces";
 
+  const videoUrl = currentProject?.videoUrl || null;
+  const posterUrl = currentProject?.primeImage || undefined;
+
+  useEffect(() => {
+    if (!videoUrl) {
+      router.replace(`/jewellery/${segment}/${style}/video-style`);
+    }
+  }, [router, segment, style, videoUrl]);
+
   return (
     <div className="relative min-h-screen bg-black text-white selection:bg-figma-gradient/30 font-roboto">
-      <FlowHeader title="Cinematic Result" />
+      <FlowHeader title="Video Results" />
 
-      <main className="w-full max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
-        {/* Success Header */}
+      <main className="w-full max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 pb-20 flex flex-col items-center">
+        <ProgressStepper currentStep={5} partialStep={false} />
+
+        {/* Video Result Card */}
         <motion.div
-           initial={{ opacity: 0, y: -20 }}
-           animate={{ opacity: 1, y: 0 }}
-           className="flex items-center gap-3 mb-10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative w-full max-w-full sm:max-w-[353px] aspect-[166/250] p-[2px] bg-figma-gradient rounded-[22px] group cursor-pointer mt-10 mb-12 shadow-[0_0_50px_rgba(124,77,255,0.2)]"
         >
-          <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
-             <CheckCircle2 className="w-6 h-6 text-green-500" />
-          </div>
-          <div>
-            <h2 className="font-bold text-2xl text-white">Motion Complete</h2>
-            <p className="text-[#C2C6D6] text-sm">Your cinematic jewellery showcase is ready</p>
+          <div className="relative w-full h-full bg-[#0A0A0A] rounded-[20px] overflow-hidden">
+            {videoUrl ? (
+              <>
+                <video
+                  src={videoUrl}
+                  poster={posterUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                  <div className="w-[80px] h-[80px] rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#FF00C7] flex items-center justify-center shadow-[0_0_30px_rgba(124,77,255,0.5)] transition-transform duration-300 group-hover:scale-110">
+                    <Play className="w-10 h-10 text-white fill-white ml-1" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-[#0A0A0A]">
+                <div className="w-[80px] h-[80px] rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                  <Play className="w-10 h-10 text-white/20" />
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
 
-        {/* Video Player Placeholder */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="relative w-full max-w-full sm:max-w-[353px] aspect-[9/16] rounded-[24px] overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(124,77,255,0.2)] bg-[#1A1E29]"
-        >
-          {currentProject?.videoUrl ? (
-            <video
-              src={currentProject.videoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <>
-              {/* Using the prime image as the video thumbnail fallback */}
-              <div className="absolute inset-0 grayscale-[0.2]">
-                 <img
-                   src={currentProject?.primeImage || "/indian-bride-9-2025-12-2fd0a5885b204639c8156089c6d2ebad-16x9.avif"}
-                   alt="Jewellery Video Result"
-                   className="w-full h-full object-cover"
-                 />
-              </div>
-
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                 <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center animate-pulse">
-                    <Play className="w-8 h-8 text-white fill-white" />
-                 </div>
-              </div>
-            </>
-          )}
-
-          {/* Video Metadata Overlay */}
-          <div className="absolute bottom-6 left-6 right-6">
-             <div className="bg-black/60 backdrop-blur-md p-4 rounded-xl border border-white/10">
-                <span className="text-[10px] font-bold text-[#7C4DFF] uppercase tracking-widest">Macro Shine Treatment</span>
-                <h3 className="text-white font-bold text-base mt-0.5">Premium Editorial Motion</h3>
-             </div>
-          </div>
-        </motion.div>
-
-        {/* Action Buttons (aligned with main Results page) */}
-        <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-4 mt-10 mb-20">
-           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full h-[61px] bg-figma-gradient rounded-[16px] shadow-[0_10px_30px_rgba(124,77,255,0.3)] flex items-center justify-center gap-3"
-          >
-            <Download className="w-5 h-5 text-white" />
-            <span className="font-semibold text-lg text-white">Export 4K Video</span>
-          </motion.button>
-
-          <Link href="/">
-            <motion.button
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.02)" }}
+        {/* Action Button */}
+        <div className="w-full max-w-full sm:max-w-[353px] flex flex-col gap-4 mb-10">
+          <Link href={`/jewellery/${segment}/${style}/final-results`} className="w-full">
+            <motion.button 
+              whileHover={{ scale: 1.02 }} 
               whileTap={{ scale: 0.98 }}
-              className="w-full h-[61px] border border-white/10 rounded-[16px] flex items-center justify-center gap-2"
+              className="w-full h-[61px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] rounded-full shadow-[0_10px_30px_rgba(0,163,255,0.2)] flex items-center justify-center"
             >
-              <Plus className="w-5 h-5 text-[#E2E2E8]" />
-              <span className="font-medium text-lg text-[#E2E2E8]">
-                Create New Project
-              </span>
+              <span className="font-bold text-[18px] text-white">Approve & Continue</span>
             </motion.button>
           </Link>
         </div>
-
-        <Footer />
       </main>
+      <Footer />
     </div>
   );
 }

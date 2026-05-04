@@ -51,6 +51,7 @@ export interface SharedInputs {
 
   outputStyle?: OutputStyle;
   background?: Background;
+  backgroundImageUrl?: string | null;
 
   aiNotes?: string | null;
 

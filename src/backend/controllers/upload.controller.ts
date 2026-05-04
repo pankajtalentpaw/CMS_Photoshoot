@@ -84,6 +84,10 @@ export const UploadController = {
         return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
       }
 
+      if (!file.type.startsWith("image/")) {
+        return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
+      }
+
       if (file.size > 10 * 1024 * 1024) {
         return NextResponse.json({ error: "File must be less than 10MB" }, { status: 400 });
       }

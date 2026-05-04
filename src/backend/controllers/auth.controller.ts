@@ -51,7 +51,7 @@ export const AuthController = {
         organizationName,
         state,
         city,
-        credits: 100 // Starting credits
+        credits: 250 // Starting credits
       });
 
       return NextResponse.json({

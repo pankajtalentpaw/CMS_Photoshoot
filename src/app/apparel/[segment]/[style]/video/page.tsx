@@ -79,6 +79,7 @@ export default function VideoStylePage() {
       segment: segment,
       wearType: styleParam,
       videoStyle: selectedVideoStyle,
+      sourceJobId: currentProject?.sourceJobId || "",
       prompt: customPrompt,
     });
   };

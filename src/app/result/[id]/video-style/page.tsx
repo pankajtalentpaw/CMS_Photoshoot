@@ -48,10 +48,11 @@ export default function SelectVideoStylePage() {
     generate({
       garmentImageUrl: previewImage,
       mode: "VIDEO_GENERATION",
-      hub: "Apparel", // Default
+      hub: "Apparel",
       style: currentProject?.styleId || "Catalog",
       videoStyle: selectedStyle,
       prompt: customNote,
+      sourceJobId: jobId,
     });
   };
 

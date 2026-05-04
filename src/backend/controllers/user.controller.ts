@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { authService } from "@/backend/services/auth/authService";
+import { generationService } from "@/backend/services/generationService";
 import connectDB from "@/backend/lib/mongodb";
 import User from "@/backend/models/User";
 
@@ -11,17 +12,20 @@ export const UserController = {
       const session = await getServerSession(authOptions);
 
       if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });  
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const userId = session.user.id;
-      const profile = await authService.getUserProfile(userId);
+      const [profile, stats] = await Promise.all([
+        authService.getUserProfile(userId),
+        generationService.getGenerationStats(userId),
+      ]);
 
       if (!profile) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      return NextResponse.json({ user: profile });
+      return NextResponse.json({ user: profile, stats });
     } catch (error: unknown) {
       console.error("❌ [/api/user/profile] Error:", error);
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });

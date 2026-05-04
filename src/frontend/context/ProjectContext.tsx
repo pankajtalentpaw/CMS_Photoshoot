@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useAuth } from "@/frontend/context/AuthContext";
+
 
 export interface ProjectState {
   garmentImageUrl?: string;
@@ -8,6 +10,7 @@ export interface ProjectState {
   modelImageUrl?: string;
   modelId?: string;
   backgroundId?: string;
+  backgroundImageUrl?: string;
   styleId?: string;
   prompt?: string;
   primeImage?: string;
@@ -20,6 +23,7 @@ export interface ProjectState {
   videoPrompt?: string;
   videoUrl?: string;
   approvedPrime?: boolean;
+  sourceJobId?: string;
   finalVideo?: string;
 }
 
@@ -69,8 +73,16 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  const { userProfile, isAuthenticated } = useAuth();
   const [credits, setCredits] = useState(readInitialCredits);
   const [currentProject, setCurrentProject] = useState<ProjectState | null>(readInitialProject);
+
+  // Sync credits with backend if authenticated
+  useEffect(() => {
+    if (isAuthenticated && userProfile) {
+      setCredits(userProfile.credits);
+    }
+  }, [isAuthenticated, userProfile]);
 
   useEffect(() => {
     localStorage.setItem(CREDITS_KEY, credits.toString());
