@@ -45,6 +45,8 @@
     "typescript": "^5"
   },
   "overrides": {
-    "mongodb": "^7.1.1"
+    "@auth/mongodb-adapter": {
+      "mongodb": "$mongodb"
+    }
   }
 }
