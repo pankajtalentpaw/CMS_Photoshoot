@@ -204,8 +204,8 @@ function scoreCandidate(url: string, sourceHint: string) {
   }
 
   // De-prioritize references and inputs that often appear in payload echoes.
-  if (/(input|garment|cloth|mask|source|original|ref|reference|upload)/.test(composite)) {
-    score -= 6;
+  if (/(input|garment|cloth|mask|alpha|source|original|ref|reference|upload|matte)/.test(composite)) {
+    score -= 10;
   }
 
   return score;
@@ -435,9 +435,10 @@ function buildModelPayload(params: {
   const resolvedPrompt = resolvePrompt(params);
 
   // Many image-edit model endpoints expect a single primary image to edit.
-  // For AI Studio, the primary image should be the selected model (person), with the product image provided as a reference.
-  const primaryImageUrl = isAIStudio ? params.modelImageUrl : params.garmentImageUrl;
-  const referenceImageUrl = isAIStudio ? params.garmentImageUrl : params.modelImageUrl;
+  // For BOTH Virtual Try-On and AI Studio, the primary image should be the model (person), 
+  // with the garment/product image provided as a reference/conditioning.
+  const primaryImageUrl = params.modelImageUrl || params.garmentImageUrl;
+  const referenceImageUrl = params.modelImageUrl ? params.garmentImageUrl : "";
 
   return {
     prompt: resolvedPrompt,

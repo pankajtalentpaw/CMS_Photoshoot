@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import path from "path";
+import fs from "fs/promises";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { runComfyService } from "@/backend/services/ai/runComfyService";
 import { generationService } from "@/backend/services/generationService";
 import { geminiService } from "@/backend/services/ai/geminiService";
 import type { PromptInputs } from "@/backend/prompts";
+import { s3Service } from "@/backend/services/s3Service";
 import { z } from "zod";
 
 
@@ -19,12 +22,58 @@ async function ensurePublicUrl(url: string | null | undefined, userId: string, b
   // If it's already a public non-local URL, return it
   if (isHttp && !isLocalHost) return url;
   
-  // If it's a relative path, construct the absolute URL
-  if (isRelative) {
-    return `${baseUrl}${url}`;
+  // For relative paths or localhost, try to read directly from filesystem
+  if (isRelative || isLocalHost) {
+    try {
+      let cleanRelativePath = url;
+      if (isHttp) {
+        const parsedUrl = new URL(url);
+        cleanRelativePath = parsedUrl.pathname;
+      }
+      
+      // Ensure relative path doesn't start with a slash for path.join consistency
+      if (cleanRelativePath.startsWith("/")) {
+        cleanRelativePath = cleanRelativePath.slice(1);
+      }
+      
+      const filePath = path.join(process.cwd(), "public", cleanRelativePath);
+      console.log(`[ensurePublicUrl] Attempting filesystem read: ${filePath}`);
+      
+      // Verify file exists and read it
+      await fs.access(filePath);
+      const buffer = await fs.readFile(filePath);
+      const fileName = path.basename(filePath);
+      const extension = path.extname(filePath).toLowerCase();
+      const contentType = extension === ".png" ? "image/png" : (extension === ".jpg" || extension === ".jpeg") ? "image/jpeg" : "application/octet-stream";
+      
+      console.log(`[ensurePublicUrl] Filesystem hit: ${filePath}. Bridging to S3...`);
+      const bridgedUrl = await s3Service.uploadBuffer(buffer, fileName, contentType, userId);
+      console.log(`[ensurePublicUrl] Bridge successful: ${bridgedUrl}`);
+      return bridgedUrl;
+    } catch (fsError) {
+      console.warn(`[ensurePublicUrl] Filesystem bridge failed for ${url}. Error: ${fsError instanceof Error ? fsError.message : String(fsError)}`);
+    }
   }
 
-  return url;
+  // Fallback: If it's a localhost URL and FS bridge failed, try to upload via network fetch
+  let absoluteUrl = url;
+  if (isRelative) {
+    absoluteUrl = `${baseUrl}${url}`;
+  }
+
+  if (absoluteUrl.includes("localhost") || absoluteUrl.includes("127.0.0.1")) {
+    try {
+      console.log(`[ensurePublicUrl] Localhost detected. Uploading to S3 via fetch: ${absoluteUrl}`);
+      const s3Url = await s3Service.uploadFromUrl(absoluteUrl, userId);
+      console.log(`[ensurePublicUrl] Fetch bridge successful: ${s3Url}`);
+      return s3Url;
+    } catch (error) {
+      console.error(`[ensurePublicUrl] Failed to bridge local asset via fetch: ${absoluteUrl}. Error: ${error instanceof Error ? error.message : String(error)}`);
+      return absoluteUrl;
+    }
+  }
+
+  return absoluteUrl;
 }
 
 function isPublicHttpUrl(value: string) {

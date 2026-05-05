@@ -4,7 +4,17 @@ import React, { useState } from "react";
 import FlowHeader from "@/frontend/components/FlowHeader";
 import UploadZone from "@/frontend/components/UploadZone";
 import { motion } from "framer-motion";
-import { Loader2, Sparkles, User, Layout, Check, Download, Share2 } from "lucide-react";
+import { 
+  Loader2, 
+  Sparkles, 
+  User, 
+  Layout, 
+  Check, 
+  Download, 
+  Share2, 
+  RefreshCcw 
+} from "lucide-react";
+import { saveAs } from "file-saver";
 import ProgressStepper from "@/frontend/components/ProgressStepper";
 import Image from "next/image";
 import { storageService } from "@/backend/services/storageService";
@@ -84,6 +94,7 @@ export const VirtualTryOnView = () => {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [activeResultIndex, setActiveResultIndex] = useState<number>(0);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: session } = useSession();
 
@@ -263,6 +274,7 @@ export const VirtualTryOnView = () => {
         hasUserImage: Boolean(payload.modelImageUrl),
         hasClothImage: Boolean(payload.garmentImageUrl),
         mode: payload.mode,
+        hub: "Apparel",
       });
 
       const response = await fetch("/api/generate", {
@@ -270,7 +282,7 @@ export const VirtualTryOnView = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, hub: "Apparel" }),
       });
 
       if (!response.ok) {
@@ -365,14 +377,27 @@ export const VirtualTryOnView = () => {
   const activeResultUrl = resultItems[activeResultIndex]?.url || resultItems[0]?.url || "";
   const activeResultLabel = resultItems[activeResultIndex]?.label || "Result";
 
-  const handleDownloadResult = () => {
+  const handleDownloadResult = async () => {
     if (!activeResultUrl) return;
-    const link = document.createElement("a");
-    link.href = activeResultUrl;
-    link.download = `${activeResultLabel.toLowerCase().replace(/\s+/g, "-")}.png`;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.click();
+    try {
+      setIsDownloading(true);
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(activeResultUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Failed to fetch image");
+      
+      const blob = await response.blob();
+      let ext = "png";
+      if (blob.type === "image/jpeg") ext = "jpg";
+      else if (blob.type === "image/webp") ext = "webp";
+      
+      const filename = `TryOn_${activeResultLabel.toLowerCase().replace(/\s+/g, "_")}_${Date.now()}.${ext}`;
+      saveAs(blob, filename);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Failed to download image. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleShareResult = async () => {
@@ -414,22 +439,34 @@ export const VirtualTryOnView = () => {
               <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-figma-gradient shadow-[0_0_10px_rgba(124,77,255,0.5)]" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("AI Studio")}
+            className={`px-8 py-4 font-bold text-sm transition-all relative ${activeTab === "AI Studio"
+              ? "text-white"
+              : "text-[#9CA3AF] hover:text-white"
+              }`}
+          >
+            AI Studio
+            {activeTab === "AI Studio" && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-figma-gradient shadow-[0_0_10px_rgba(124,77,255,0.5)]" />
+            )}
+          </button>
         </div>
 
         {/* Main Content Flow */}
-        {/* Right Panel - Results & Controls */}
-        <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[40px] px-5 flex flex-col transition-all duration-500">
-          <div className="flex flex-col gap-12 mb-20">
-            <ProgressStepper currentStep={isVirtualFlow ? 3 : 2} />
+        <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto px-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+            
+            {/* Left Column: Uploads & Controls */}
+            <div className="flex flex-col gap-10">
+              <ProgressStepper currentStep={isVirtualFlow ? 3 : 2} />
 
-            {/* Upload Sections Layer */}
-            <div className="flex flex-col gap-12">
-              {/* 1. Upload User Photo (Only for Virtual Try-On) */}
+              {/* Upload Your Image (Only for Virtual Try-On) */}
               {activeTab === "Virtual Try-On" && (
-                <section>
+                <section className="bg-white/[0.02] border border-white/5 rounded-[32px] p-8">
                   <div className="mb-6">
-                    <h1 className="font-roboto font-semibold text-2xl text-white mb-2">Upload Your Image</h1>
-                    <p className="text-sm text-[#99A1AF]">Upload a clear photo of yourself for the virtual try-on.</p>
+                    <h2 className="font-roboto font-semibold text-xl text-white mb-1">Upload Your Image</h2>
+                    <p className="text-xs text-[#99A1AF]">Upload a clear photo of yourself for the virtual try-on.</p>
                   </div>
                   <UploadZone
                     onFileSelect={(file) => {
@@ -445,13 +482,13 @@ export const VirtualTryOnView = () => {
                 </section>
               )}
 
-              {/* 2. Upload Clothing Image */}
-              <section>
+              {/* Upload Clothing Section */}
+              <section className="bg-white/[0.02] border border-white/5 rounded-[32px] p-8">
                 <div className="mb-6">
-                  <h1 className="font-roboto font-semibold text-2xl text-white mb-2">
+                  <h2 className="font-roboto font-semibold text-xl text-white mb-1">
                     {activeTab === "AI Studio" ? "Upload Product" : "Upload Clothing"}
-                  </h1>
-                  <p className="text-sm text-[#99A1AF]">
+                  </h2>
+                  <p className="text-xs text-[#99A1AF]">
                     {activeTab === "AI Studio"
                       ? "Upload a clear photo of the product you want to studio-ize."
                       : "Upload a clear photo of the garment you want to try on."}
@@ -475,115 +512,90 @@ export const VirtualTryOnView = () => {
                 />
                 {formErrors.clothingImage && <p className="text-xs text-red-400 mt-2">{formErrors.clothingImage}</p>}
               </section>
-            </div>
-            {activeTab === "AI Studio" && (
-              <div className="rounded-2xl border border-white/10 bg-[#101323] p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#9CA3AF] mb-3">AI Studio Steps</h3>
-                <ol className="grid gap-2 text-sm text-[#C2C6D6]">
-                  <li>1. Upload Product Image</li>
-                  <li>2. Select Model</li>
-                  <li>3. Select Background Style</li>
-                  <li>4. Select Output Style</li>
-                  <li>5. Add AI Director Notes (optional)</li>
-                  <li>6. Generate Image</li>
-                  <li>7. View Output</li>
-                </ol>
-              </div>
-            )}
 
-            {/* Select Model Section (AI Studio) */}
-            {activeTab === "AI Studio" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Select Model</h3>
-                  <span className="text-[11px] font-semibold text-[#C2C6D6]">Selected: {selectedModelLabel}</span>
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                  {MODELS.map((model) => (
-                    <div key={model.image} className="space-y-2">
-                      <button
-                        onClick={() => {
-                          if (!canSelectModel) return;
-                          setSelectedModel(model.image);
-                          setBackgroundStyle(null);
-                          setOutputStyle(null);
-                          setFormErrors((prev) => ({ ...prev, model: undefined, background: undefined, style: undefined }));
-                        }}
-                        disabled={!canSelectModel}
-                        className={`relative aspect-[3/4] w-full rounded-xl overflow-hidden border-2 transition-all ${selectedModel === model.image ? "border-[#7C3AED] scale-105 shadow-[0_0_20px_rgba(124,58,237,0.4)]" : "border-transparent opacity-60 hover:opacity-100"
-                          }`}
-                      >
-                        <img src={model.image} alt={model.name} className="w-full h-full object-cover" />
-                        <div className="absolute top-1 left-1 px-1.5 py-1 rounded-md bg-black/80 border border-white/20">
-                          <p className="text-[10px] leading-none text-white font-bold">{model.name}</p>
-                        </div>
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1 py-1">
-                          <p className="text-[10px] leading-none text-white font-semibold truncate">{model.name}</p>
-                        </div>
-                        {selectedModel === model.image && (
-                          <div className="absolute top-1 right-1 bg-[#7C3AED] rounded-md p-0.5">
-                            <Check className="w-3 h-3 text-white" />
+              {/* Select Model Section (AI Studio) */}
+              {activeTab === "AI Studio" && (
+                <div className="space-y-6 bg-white/[0.02] border border-white/5 rounded-[32px] p-8">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Select Model</h3>
+                    <span className="text-[11px] font-semibold text-[#C2C6D6]">Selected: {selectedModelLabel}</span>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-4 gap-4">
+                    {MODELS.map((model) => (
+                      <div key={model.image} className="space-y-2">
+                        <button
+                          onClick={() => {
+                            if (!canSelectModel) return;
+                            setSelectedModel(model.image);
+                            setBackgroundStyle(null);
+                            setOutputStyle(null);
+                            setFormErrors((prev) => ({ ...prev, model: undefined, background: undefined, style: undefined }));
+                          }}
+                          disabled={!canSelectModel}
+                          className={`relative aspect-[3/4] w-full rounded-xl overflow-hidden border-2 transition-all ${selectedModel === model.image ? "border-[#00A3FF] scale-105 shadow-[0_0_20px_rgba(0,163,255,0.4)]" : "border-transparent opacity-60 hover:opacity-100"
+                            }`}
+                        >
+                          <img src={model.image} alt={model.name} className="w-full h-full object-cover" />
+                          <div className="absolute top-1 left-1 px-1.5 py-1 rounded-md bg-black/80 border border-white/20">
+                            <p className="text-[10px] leading-none text-white font-bold">{model.name}</p>
                           </div>
-                        )}
-                      </button>
-                      <div className={`h-6 rounded-md border flex items-center justify-center px-1 ${selectedModel === model.image ? "border-[#7C3AED] bg-[#7C3AED]/20" : "border-white/20 bg-black/40"}`}>
-                        <p className={`text-xs leading-none font-bold ${selectedModel === model.image ? "text-[#EBDDFF]" : "text-white"}`}>
-                          {model.name}
+                          {selectedModel === model.image && (
+                            <div className="absolute top-1 right-1 bg-[#00A3FF] rounded-md p-0.5">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {formErrors.model && <p className="text-xs text-red-400">{formErrors.model}</p>}
+                  {!canSelectModel && (
+                    <p className="text-xs text-[#9CA3AF]">Upload a product image to unlock model selection.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Background Style Section (Only for AI Studio) */}
+              {activeTab === "AI Studio" && (
+                <div className="space-y-6 bg-white/[0.02] border border-white/5 rounded-[32px] p-8">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Background Style</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {BACKGROUNDS.map((bg, idx) => (
+                      <div key={idx} className="space-y-2 group">
+                        <button
+                          onClick={() => {
+                            if (!canSelectBackground) return;
+                            setBackgroundStyle(bg.name);
+                            setOutputStyle(null);
+                            setFormErrors((prev) => ({ ...prev, background: undefined, style: undefined }));
+                          }}
+                          disabled={!canSelectBackground}
+                          className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all ${backgroundStyle === bg.name ? "border-[#00A3FF] scale-102 shadow-[0_0_15px_rgba(0,163,255,0.3)]" : "border-transparent opacity-60 hover:opacity-90"
+                            }`}
+                        >
+                          <img src={bg.img} alt={bg.name} className="w-full h-full object-cover" />
+                        </button>
+                        <p className={`text-[10px] font-bold text-center transition-colors ${backgroundStyle === bg.name ? "text-[#00A3FF]" : "text-[#9CA3AF]"}`}>
+                          {bg.name}
                         </p>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  {formErrors.background && <p className="text-xs text-red-400">{formErrors.background}</p>}
+                  {!canSelectBackground && (
+                    <p className="text-xs text-[#9CA3AF]">Select a model to unlock backgrounds.</p>
+                  )}
                 </div>
-                {formErrors.model && <p className="text-xs text-red-400">{formErrors.model}</p>}
-                {!canSelectModel && (
-                  <p className="text-xs text-[#9CA3AF]">Upload a product image to unlock model selection.</p>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* Background Style Section (Only for AI Studio) */}
-            {activeTab === "AI Studio" && (
-              <div className="space-y-6">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Background Style</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {BACKGROUNDS.map((bg, idx) => (
-                    <div key={idx} className="space-y-2 group">
-                      <button
-                        onClick={() => {
-                          if (!canSelectBackground) return;
-                          setBackgroundStyle(bg.name);
-                          setOutputStyle(null);
-                          setFormErrors((prev) => ({ ...prev, background: undefined, style: undefined }));
-                        }}
-                        disabled={!canSelectBackground}
-                        className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all ${backgroundStyle === bg.name ? "border-[#7C3AED] scale-102 shadow-[0_0_15px_rgba(124,58,237,0.3)]" : "border-transparent opacity-60 hover:opacity-90"
-                          }`}
-                      >
-                        <img src={bg.img} alt={bg.name} className="w-full h-full object-cover" />
-                      </button>
-                      <p className={`text-[10px] font-bold text-center transition-colors ${backgroundStyle === bg.name ? "text-[#7C3AED]" : "text-[#9CA3AF]"}`}>
-                        {bg.name}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                {formErrors.background && <p className="text-xs text-red-400">{formErrors.background}</p>}
-                {!canSelectBackground && (
-                  <p className="text-xs text-[#9CA3AF]">Select a model to unlock backgrounds.</p>
-                )}
-              </div>
-            )}
-
-            {/* Controls and Output Section */}
-            <div className="flex flex-col gap-16">
-              <div className="w-full space-y-16">
-                {/* Gender and Category */}
-                <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-1 gap-8">
-                  {/* Product type (Virtual Try-On only) */}
+              {/* AI Controls (Style, Format, Notes) */}
+              <div className="space-y-8 bg-white/[0.02] border border-white/5 rounded-[32px] p-8">
+                {/* Product/Person Types */}
+                <div className="grid grid-cols-1 gap-6">
                   {activeTab === "Virtual Try-On" && (
-                    <div className="space-y-5 col-span-2 lg:col-span-1">
-                      <h3 className="text-sm font-bold text-white">Product Type</h3>
-                      <div className="flex flex-wrap gap-3">
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Product Type</h3>
+                      <div className="flex flex-wrap gap-2">
                         {TRY_ON_PRODUCT_TYPES.map((option) => (
                           <ProductTag
                             key={option}
@@ -602,11 +614,10 @@ export const VirtualTryOnView = () => {
                     </div>
                   )}
 
-                  {/* Gender selection (Virtual Try-On prompt control) */}
                   {activeTab === "Virtual Try-On" && isFabricTryOn && (
-                    <div className="space-y-5">
-                      <h3 className="text-sm font-bold text-white">Person Type</h3>
-                      <div className="flex flex-wrap gap-3">
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Person Type</h3>
+                      <div className="flex flex-wrap gap-2">
                         {AUDIENCE_OPTIONS.map((option) => (
                           <ProductTag
                             key={option}
@@ -623,11 +634,10 @@ export const VirtualTryOnView = () => {
                     </div>
                   )}
 
-                  {/* Category selection (Only relevant for apparel-like items) */}
                   {activeTab === "Virtual Try-On" && isFabricTryOn && (
-                    <div className="space-y-5">
-                      <h3 className="text-sm font-bold text-white">Clothing Category</h3>
-                      <div className="flex flex-wrap gap-3">
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Category</h3>
+                      <div className="flex flex-wrap gap-2">
                         {(CATEGORIES_BY_AUDIENCE[audience] || []).map((c) => (
                           <ProductTag
                             key={c}
@@ -646,10 +656,9 @@ export const VirtualTryOnView = () => {
                   )}
                 </div>
 
-                {/* Output Style (Both modes) */}
-                <div className="space-y-5">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Output Style</h3>
-                  <div className="flex flex-wrap gap-3">
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Output Style</h3>
+                  <div className="flex flex-wrap gap-2">
                     {OUTPUT_STYLES.map((s) => (
                       <ProductTag
                         key={s}
@@ -667,9 +676,9 @@ export const VirtualTryOnView = () => {
                 </div>
 
                 {isVirtualFlow && (
-                  <div className="space-y-5">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Output Format</h3>
-                    <div className="flex flex-wrap gap-3">
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">Format</h3>
+                    <div className="flex flex-wrap gap-2">
                       {OUTPUT_FORMATS.map((option) => (
                         <ProductTag
                           key={option.value}
@@ -686,132 +695,148 @@ export const VirtualTryOnView = () => {
                   </div>
                 )}
 
-                {/* AI Director Notes (Both modes) */}
-                <div className="space-y-5">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white">AI Director Notes</h3>
+                    <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">AI Director Notes</h3>
                     <span className="text-[10px] text-[#FF9E45] font-bold tracking-widest">(OPTIONAL)</span>
                   </div>
                   <textarea
                     value={directorNotes}
                     onChange={(e) => setDirectorNotes(e.target.value)}
-                    placeholder="E.g. Focus on the golden pallu details, add warm sunlight flare from left..."
+                    placeholder="E.g. Focus on details, add warm sunlight..."
                     disabled={!canAddNotes}
-                    className="w-full bg-[#0F111A] border border-white/10 rounded-2xl p-5 text-sm text-gray-300 placeholder-gray-700 focus:ring-1 focus:ring-[#5B45FF] transition-all min-h-[120px] resize-none"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm text-white placeholder-gray-600 focus:ring-1 focus:ring-[#7C4DFF] transition-all min-h-[100px] resize-none"
                   />
                 </div>
 
-                {/* Generate Button Container */}
-                <div className="space-y-6 pt-4">
-                  <button
-                    onClick={handleGenerateTryOn}
-                    disabled={!canGenerate}
-                    className={`w-full py-5 rounded-[24px] font-bold text-sm tracking-wide transition-all ${canGenerate
-                      ? "bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white shadow-[0_12px_28px_rgba(124,77,255,0.4)] hover:scale-[1.02]"
-                      : "bg-[#2D324D]/50 text-[#6E7180] border border-white/5 cursor-not-allowed"
-                      }`}
-                  >
-                    {loading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>AI Processing...</span>
-                      </div>
-                    ) : "Generate Prime Image"}
-                  </button>
-
-                  {submitError && (
-                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-                      {submitError}
+                <button
+                  onClick={handleGenerateTryOn}
+                  disabled={!canGenerate}
+                  className={`w-full py-5 rounded-[24px] font-bold text-[16px] tracking-wide transition-all ${canGenerate
+                    ? "bg-gradient-to-r from-[#00A3FF] to-[#D100FF] text-white shadow-[0_12px_28px_rgba(0,163,255,0.3)] hover:scale-[1.02]"
+                    : "bg-white/5 text-[#6E7180] border border-white/5 cursor-not-allowed"
+                    }`}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Processing Look...</span>
                     </div>
-                  )}
+                  ) : "Generate Prime Image"}
+                </button>
 
-                  {results.length === 0 && !loading && (
-                    <div className="flex flex-col items-center text-center">
-                      <Sparkles className="w-8 h-8 text-[#FF9E45] opacity-50 mb-3" />
-                      <h4 className="text-sm font-bold text-white mb-2 font-roboto">Studio Results</h4>
-                      <p className="text-[11px] text-[#9CA3AF] leading-relaxed max-w-[200px]">
-                        Generate your look once to see Front, Side, Back, and Detail views instantly.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid Column */}
-              <div className="flex-grow bg-[#0F111A] rounded-[24px] p-6 border border-white/5 min-h-[600px] h-fit">
-                <div className="flex items-center gap-3 mb-8">
-                  <h2 className="text-[11px] font-bold uppercase tracking-widest text-[#9CA3AF]">Trial Results</h2>
-                  <span className="bg-[#5B45FF] text-[9px] font-bold px-2 py-0.5 rounded-md text-white">360° STUDIO</span>
-                </div>
-
-                {resultItems.length > 0 && (
-                  <div className="mb-6">
-                    <div className="mb-3 text-xs text-[#9CA3AF]">All generated views ({resultItems.length})</div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {resultItems.map((item, index) => (
-                        <button
-                          key={`${item.label}-${index}`}
-                          onClick={() => setActiveResultIndex(index)}
-                          className={`relative overflow-hidden rounded-xl border text-left transition-all ${activeResultIndex === index
-                            ? "border-[#5B45FF] shadow-[0_0_0_1px_rgba(91,69,255,0.5)]"
-                            : "border-white/10 hover:border-white/30"
-                            }`}
-                        >
-                          <div className="relative aspect-[4/3] bg-[#1A1D2B]">
-                            <Image src={item.url} alt={item.label} fill className="object-cover" unoptimized />
-                          </div>
-                          <div className="px-2.5 py-2 text-[11px] font-semibold text-[#C2C6D6] bg-[#121522]">
-                            {item.label}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                {submitError && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+                    {submitError}
                   </div>
                 )}
+              </div>
+            </div>
 
-                <div className="relative min-h-[500px] bg-[#11131E] rounded-[32px] border border-white/5 overflow-hidden shadow-2xl">
-                  {loading && results.length === 0 && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-                      <Loader2 className="w-12 h-12 animate-spin text-[#7C4DFF] mb-6" />
-                      <p className="text-2xl font-bold text-white mb-2">Stitching 360° Studio Look</p>
-                      <p className="text-sm text-[#9CA3AF]">Creating 360° Studio Views... Wait</p>
-                    </div>
+            {/* Right Column: Results Dashboard */}
+            <div className="sticky top-[140px] flex flex-col gap-6">
+              <div className="bg-[#101323] border border-white/10 rounded-[32px] p-6 lg:p-8 min-h-[600px] flex flex-col">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-[#9CA3AF]">Studio Output</h2>
+                    <span className="bg-gradient-to-r from-[#00A3FF] to-[#D100FF] text-[9px] font-bold px-2.5 py-1 rounded-full text-white uppercase">Live Render</span>
+                  </div>
+                  {resultItems.length > 0 && (
+                    <span className="text-[11px] font-medium text-[#C2C6D6]">{resultItems.length} Views Generated</span>
                   )}
+                </div>
 
-                  {!loading && activeResultUrl && (
-                    <>
-                      <div className="absolute inset-0">
-                        <Image
-                          src={activeResultUrl}
-                          alt={activeResultLabel}
-                          fill
-                          className="object-contain"
-                          unoptimized
-                        />
-                      </div>
-
-                      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                {/* Main Preview Area */}
+                <div className="relative flex-1 bg-black/40 rounded-[24px] border border-white/5 overflow-hidden shadow-inner group mb-6">
+                  {loading && results.length === 0 ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="mb-6"
+                      >
+                        <RefreshCcw className="w-12 h-12 text-[#00A3FF]" />
+                      </motion.div>
+                      <p className="text-xl font-bold text-white mb-2">Generating Your Look</p>
+                      <p className="text-sm text-[#9CA3AF]">Stitching AI Studio Views...</p>
+                    </div>
+                  ) : activeResultUrl ? (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0"
+                    >
+                      <Image
+                        src={activeResultUrl}
+                        alt={activeResultLabel}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                      
+                      {/* Interaction Overlay */}
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={handleDownloadResult}
-                          className="h-10 px-4 rounded-lg bg-black/55 border border-white/20 text-white text-sm font-semibold flex items-center gap-2 hover:bg-black/70"
+                          disabled={isDownloading}
+                          className="h-12 px-6 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-sm font-bold flex items-center gap-2 hover:bg-black/80 transition-all shadow-xl"
                         >
-                          <Download className="w-4 h-4" /> Download
+                          {isDownloading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          Download
                         </button>
                         <button
                           onClick={handleShareResult}
-                          className="h-10 px-4 rounded-lg bg-black/55 border border-white/20 text-white text-sm font-semibold flex items-center gap-2 hover:bg-black/70"
+                          className="h-12 px-6 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-sm font-bold flex items-center gap-2 hover:bg-black/80 transition-all shadow-xl"
                         >
                           <Share2 className="w-4 h-4" /> Share
                         </button>
                       </div>
-                    </>
-                  )}
-
-                  {!loading && !activeResultUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-15">
-                      <Layout className="w-14 h-14" />
+                    </motion.div>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-10 opacity-20">
+                      <Layout className="w-16 h-16 mb-4" />
+                      <p className="text-sm font-medium">Upload photos and click generate to see your studio results here.</p>
                     </div>
                   )}
+                </div>
+
+                {/* Thumbnails Grid */}
+                {resultItems.length > 1 && (
+                  <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                    {resultItems.map((item, index) => (
+                      <button
+                        key={`${item.label}-${index}`}
+                        onClick={() => setActiveResultIndex(index)}
+                        className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${activeResultIndex === index
+                          ? "border-[#00A3FF] scale-105 shadow-[0_0_15px_rgba(0,163,255,0.4)]"
+                          : "border-transparent opacity-40 hover:opacity-100"
+                          }`}
+                      >
+                        <Image src={item.url} alt={item.label} fill className="object-cover" unoptimized />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {activeResultUrl && (
+                   <div className="mt-4 text-center">
+                     <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">{activeResultLabel}</p>
+                   </div>
+                )}
+              </div>
+              
+              {/* Pro Tips / Info */}
+              <div className="bg-white/5 border border-white/10 rounded-[32px] p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-[#00A3FF]/20 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-[#00A3FF]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1">Pro Tip</h4>
+                    <p className="text-[11px] text-[#9CA3AF] leading-relaxed">
+                      For best results, use a well-lit photo with a neutral background. Our AI works best when the clothing details are clearly visible.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

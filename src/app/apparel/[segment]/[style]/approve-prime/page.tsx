@@ -8,7 +8,12 @@ import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { Check, RefreshCcw, Sparkles, MessageSquare, X, AlertCircle, ZoomIn, Maximize } from "lucide-react";
+import { 
+  Check, RefreshCcw, Sparkles, MessageSquare, X, AlertCircle, ZoomIn, Maximize,
+  Camera, PlayCircle, Download, Plus, ChevronLeft, ChevronRight
+} from "lucide-react";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
 import { useProject } from "@/frontend/context/ProjectContext";
 import { useGenerationPolling } from "@/hooks/useGenerationPolling";
 
@@ -27,8 +32,10 @@ export default function ApprovePrimeImagePage() {
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const { currentProject, updateProject, spendCredits } = useProject();
+  const { currentProject, updateProject, spendCredits, resetProject } = useProject();
   const { status, outputImage, error, generate, reset, jobId } = useGenerationPolling();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [activeView, setActiveView] = useState(0);
   const [hasBootstrappedGeneration, setHasBootstrappedGeneration] = useState(false);
 
   const isGenerating = status === "submitting" || status === "polling";
@@ -115,16 +122,79 @@ export default function ApprovePrimeImagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompleted, outputImage]);
 
-  const handleApprove = async () => {
+  const handleApprove = async (destination?: string) => {
+    const jobId = currentProject?.sourceJobId;
+    if (!jobId) {
+      alert("No active generation found. Please try again.");
+      return;
+    }
+
+    // If already approved, just navigate
+    if (currentProject?.approvedPrime) {
+      if (destination) router.push(destination);
+      return;
+    }
+
     const success = spendCredits(5);
     if (!success) {
       alert("Insufficient credits. Please top up.");
       return;
     }
+
     setIsApproving(true);
-    updateProject({ approvedPrime: true });
-    await new Promise(resolve => setTimeout(resolve, 600));
-    router.push(`/apparel/${segment}/${style}/views`);
+    
+    try {
+      const response = await fetch("/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to approve job");
+      }
+
+      updateProject({ approvedPrime: true });
+      await new Promise(resolve => setTimeout(resolve, 600));
+      if (destination) {
+        router.push(destination);
+      }
+    } catch (error) {
+      console.error("❌ [ApprovePrime] Error:", error);
+      alert(error instanceof Error ? error.message : "Failed to approve image. Please try again.");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    if (!displayImage) return;
+    try {
+      setIsDownloading(true);
+      const zip = new JSZip();
+      
+      const urlToFetch = displayImage;
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(urlToFetch)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error(`Failed to fetch image`);
+      
+      const blob = await response.blob();
+      let ext = "png";
+      if (blob.type === "image/jpeg") ext = "jpg";
+      else if (blob.type === "image/webp") ext = "webp";
+      
+      const filename = `Prime_Result_${Date.now()}.${ext}`;
+      zip.file(filename, blob);
+
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `DigitalAtelier_Result.zip`);
+    } catch (error) {
+      console.error("Error downloading files:", error);
+      alert("Failed to create download pack. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleRegenerate = () => {
@@ -153,10 +223,10 @@ export default function ApprovePrimeImagePage() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30">
-      <FlowHeader title="Generated Result" />
+      <FlowHeader title="Results" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
-        <ProgressStepper currentStep={2} partialStep={true} />
+        <ProgressStepper currentStep={3} partialStep={false} />
 
         <AnimatePresence mode="wait">
           {isGenerating ? (
@@ -206,147 +276,149 @@ export default function ApprovePrimeImagePage() {
               key="result"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex-1 w-full flex flex-col items-center pb-20"
+              className="flex-1 w-full flex flex-col items-center pb-20 mt-10"
             >
+              {/* Carousel View - Refactored for Premium Look */}
               <div
-                className="relative w-full aspect-[4/5] max-w-full sm:max-w-[353px] rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-8 border border-white/5 group transition-all"
+                className="relative w-full aspect-[353/441] max-w-[353px] rounded-[24px] overflow-hidden border border-white/10 bg-[#1A1E29] shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-6 group transition-all"
               >
                 {displayImage ? (
-                  <Image
-                    src={displayImage}
-                    alt="Prime Image Result"
-                    fill
-                    className="object-cover"
-                    priority
-                    unoptimized
-                  />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="relative w-full h-full"
+                  >
+                    <Image
+                      src={displayImage}
+                      alt="Prime Image Result"
+                      fill
+                      className="object-cover"
+                      priority
+                      unoptimized
+                    />
+                    
+                    {/* Overlay Icons for Interaction */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <button
+                        onClick={() => setShowFullPreview(true)}
+                        className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/40 transition-all"
+                      >
+                        <Maximize className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </motion.div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-white/5">
                     <Sparkles className="w-10 h-10 text-[#7C4DFF]/40 animate-pulse" />
                   </div>
                 )}
-
-                {/* Overlay Icons from Screenshot */}
-                <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  <button
-                    onClick={() => setShowFullPreview(true)}
-                    className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all"
-                  >
-                    <ZoomIn className="w-5 h-5 text-white" />
-                  </button>
-                  <button 
-                    onClick={() => setShowFullPreview(true)}
-                    className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/20 transition-all"
-                  >
-                    <Maximize className="w-5 h-5 text-white" />
-                  </button>
-                </div>
               </div>
 
-              {/* Action Buttons under Image */}
-              {/* Action Buttons under Image */}
-              <div className="w-full max-w-full sm:max-w-[353px] grid grid-cols-2 gap-4 mb-6">
-                <button
-                  onClick={handleRegenerate}
-                  className="h-[54px] rounded-[18px] bg-white/[0.03] border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-bold text-sm"
+              {/* Carousel Pagination dots */}
+              <div className="flex gap-2 mb-10">
+                <div className="w-8 h-1.5 rounded-full bg-gradient-to-r from-[#00A3FF] to-[#D100FF]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+              </div>
+
+              {/* Side-by-Side Action Buttons */}
+              <div className="w-full max-w-[353px] flex gap-3 mb-6">
+                <button 
+                  onClick={() => handleApprove(`/apparel/${segment}/${style}/views`)}
+                  disabled={isApproving}
+                  className="flex-1 h-[61px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8]"
                 >
-                  <RefreshCcw className="w-4 h-4" />
-                  Regenerate
+                  <Camera className="w-[18px] h-[18px]" />
+                  <span className="font-roboto font-bold text-[14px]">More Angles</span>
                 </button>
+                <button 
+                  onClick={() => handleApprove(`/apparel/${segment}/${style}/video-style`)}
+                  disabled={isApproving}
+                  className="flex-1 h-[61px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8]"
+                >
+                  <PlayCircle className="w-[18px] h-[18px]" />
+                  <span className="font-roboto font-bold text-[14px]">Create Video</span>
+                </button>
+              </div>
+
+              {/* Main Action Stack */}
+              <div className="w-full max-w-[353px] flex flex-col gap-4">
                 <button
+                  onClick={handleDownloadAll}
+                  disabled={isDownloading || !displayImage}
+                  className="w-full h-[61px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] rounded-full flex items-center justify-center gap-3 text-white font-bold text-[18px] shadow-[0_10px_40px_rgba(0,163,255,0.3)] active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  {isDownloading ? (
+                    <RefreshCcw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Download className="w-5 h-5" />
+                  )}
+                  Download All
+                </button>
+
+                <button
+                  onClick={() => {
+                    resetProject();
+                    router.push("/");
+                  }}
+                  className="w-full h-[61px] bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white font-bold text-[18px] hover:bg-white/10 transition-all active:scale-[0.98]"
+                >
+                  Create New Project
+                </button>
+              </div>
+
+              {/* Refinement Options (Hidden by default, triggered by small button if needed) */}
+              <div className="mt-12 w-full max-w-[353px]">
+                <button 
                   onClick={() => setIsRegenerateMode(!isRegenerateMode)}
-                  className="h-[54px] rounded-[18px] bg-white/[0.03] border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-white font-bold text-sm"
+                  className="w-full py-4 text-[#9CA3AF] text-[13px] font-medium flex items-center justify-center gap-2 hover:text-white transition-colors"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  Edit Prompt
+                  {isRegenerateMode ? "Hide Refinements" : "Refine AI Result / Edit Prompt"}
                 </button>
-              </div>
 
-              {/* Main Approve Button */}
-              <div className="w-full max-w-full sm:max-w-[353px] mb-10">
-                <LoadingActionButton
-                  isLoading={isApproving}
-                  onClick={handleApprove}
-                  className="w-full h-[61px] text-[18px]"
-                  disabled={!displayImage}
-                >
-                  Approve & Continue
-                </LoadingActionButton>
-              </div>
-
-              <AnimatePresence>
-                {isRegenerateMode && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="w-full max-w-full sm:max-w-[353px] overflow-hidden mt-6"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto font-semibold text-base text-white">Refine AI Director Prompt</h3>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {feedbackChips.map(chip => (
-                        <button
-                          key={chip}
-                          onClick={() => toggleChip(chip)}
-                          className={`px-4 py-2 rounded-full border text-[11px] font-medium transition-all ${
-                            selectedChips.includes(chip)
-                              ? "bg-figma-gradient border-transparent text-white shadow-[0_0_15px_rgba(124,77,255,0.4)]"
-                              : "bg-white/5 border-white/10 text-[#C2C6D6] hover:border-white/20"
-                          }`}
-                        >
-                          {chip}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Selected chip live feedback */}
-                    {selectedChips.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="mb-4 bg-[#7C4DFF]/10 border border-[#7C4DFF]/20 rounded-xl p-3"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Check className="w-3 h-3 text-[#7C4DFF]" />
-                          <span className="text-[10px] font-bold uppercase text-[#7C4DFF] tracking-widest">AI Directive Engine</span>
-                        </div>
-                        <p className="text-[11px] text-white/80 leading-tight">
-                          {chipPrompts[selectedChips[selectedChips.length - 1]] || "Enhancing image quality..."}
-                        </p>
-                      </motion.div>
-                    )}
-
-                    <AnimatePresence>
-                      {showTextBox && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden mb-6"
-                        >
-                          <textarea
-                            value={customNote}
-                            onChange={e => setCustomNote(e.target.value)}
-                            placeholder="E.g. Focus on the golden pallu details..."
-                            className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#7C4DFF] outline-none transition-all placeholder:text-[#C2C6D6]/40 resize-none"
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <button
-                      onClick={handleRegenerate}
-                      className="w-full h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#7C4DFF] font-bold text-sm mb-20"
+                <AnimatePresence>
+                  {isRegenerateMode && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
                     >
-                      <RefreshCcw className="w-4 h-4" />
-                      Regenerate with Refinements
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      <div className="pt-6 flex flex-wrap gap-2 mb-6">
+                        {feedbackChips.map(chip => (
+                          <button
+                            key={chip}
+                            onClick={() => toggleChip(chip)}
+                            className={`px-4 py-2 rounded-full border text-[11px] font-medium transition-all ${
+                              selectedChips.includes(chip)
+                                ? "bg-figma-gradient border-transparent text-white shadow-[0_0_15px_rgba(124,77,255,0.4)]"
+                                : "bg-white/5 border-white/10 text-[#C2C6D6] hover:border-white/20"
+                            }`}
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+
+                      <textarea
+                        value={customNote}
+                        onChange={e => setCustomNote(e.target.value)}
+                        placeholder="E.g. Focus on the golden pallu details..."
+                        className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#7C4DFF] outline-none transition-all placeholder:text-[#C2C6D6]/40 resize-none mb-6"
+                      />
+
+                      <button
+                        onClick={handleRegenerate}
+                        className="w-full h-14 rounded-full bg-[#7C4DFF] flex items-center justify-center gap-2 hover:bg-[#6A3DE8] transition-all text-white font-bold text-sm mb-10"
+                      >
+                        <RefreshCcw className="w-4 h-4" />
+                        Regenerate Prime Image
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
