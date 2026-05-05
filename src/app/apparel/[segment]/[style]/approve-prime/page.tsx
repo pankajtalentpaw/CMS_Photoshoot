@@ -70,7 +70,7 @@ export default function ApprovePrimeImagePage() {
     return {
       garmentImageUrl: garmentUrl,
       modelImageUrl: normalizeModelImageUrl(baseProject.modelImageUrl, garmentUrl),
-      mode: "AI Studio" as const,
+      mode: "Virtual Try-On" as const,
       hub: "Apparel" as const,
       segment: segment.charAt(0).toUpperCase() + segment.slice(1),
       wearType: style.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),

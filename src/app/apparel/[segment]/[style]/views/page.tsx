@@ -123,7 +123,7 @@ export default function SelectOutputViewsPage() {
     generate({
       garmentImageUrl: garmentUrl,
       modelImageUrl: normalizeModelImageUrl(currentProject?.modelImageUrl, garmentUrl),
-      mode: "AI Studio" as const,
+      mode: "Virtual Try-On" as const,
       hub: "Apparel" as const,
       segment: segment.charAt(0).toUpperCase() + segment.slice(1),
       wearType: styleParam.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),

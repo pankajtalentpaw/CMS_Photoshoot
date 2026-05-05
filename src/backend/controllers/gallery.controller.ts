@@ -22,10 +22,16 @@ type GalleryItem = {
 };
 
 function toGalleryItem(job: IGeneration): GalleryItem {
+  const isVideo = job.mode === "VIDEO_GENERATION";
   const images = Array.isArray(job.outputImages)
     ? job.outputImages.filter(Boolean)
     : [];
-  const primary = images[0] ?? (job.outputImage ?? null);
+  
+  // For videos, the primary output is the .mp4 file, which cannot be rendered by the <Image /> component.
+  // We use the inputImage (source image) as the thumbnail/preview instead.
+  const primary = isVideo 
+    ? (job.inputImage ?? null) 
+    : (images[0] ?? (job.outputImage ?? null));
 
   return {
     jobId: String((job as unknown as { _id: unknown })._id),
@@ -38,7 +44,8 @@ function toGalleryItem(job: IGeneration): GalleryItem {
     approved: job.approved ?? false,
     status: job.status,
     outputImage: primary,
-    outputImages: images.length ? images : primary ? [primary] : [],
+    // Store the actual video URL in outputImages so it can be accessed for playback
+    outputImages: isVideo ? (job.outputImage ? [job.outputImage] : []) : (images.length ? images : primary ? [primary] : []),
     createdAt: job.createdAt instanceof Date
       ? job.createdAt.toISOString()
       : String(job.createdAt),

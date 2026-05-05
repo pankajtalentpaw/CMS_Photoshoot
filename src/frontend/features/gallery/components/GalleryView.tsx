@@ -5,10 +5,11 @@ import BottomNav from "@/frontend/components/BottomNav";
 import Footer from "@/frontend/components/Footer";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Play, ImageOff } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Play, ImageOff, X } from "lucide-react";
 import { useProject } from "@/frontend/context/ProjectContext";
 import ProtectedRoute from "@/frontend/components/ProtectedRoute";
+import VideoPreviewModal from "@/frontend/components/VideoPreviewModal";
 
 interface GalleryItem {
   jobId: string;
@@ -66,6 +67,8 @@ export default function GalleryView() {
   const [mounted, setMounted] = useState(false);
   const { images, videos, loading, error } = useGallery();
   const { credits } = useProject();
+  const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -126,6 +129,10 @@ export default function GalleryView() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: idx * 0.05 }}
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setIsPreviewOpen(true);
+                    }}
                     className="relative aspect-[163/220] rounded-[22px] overflow-hidden border border-white/10 group cursor-pointer bg-[#0A0A0A]"
                   >
                     {src ? (
@@ -173,6 +180,51 @@ export default function GalleryView() {
         </main>
 
         <BottomNav />
+
+        {/* Video Preview Modal */}
+        <VideoPreviewModal 
+          isOpen={isPreviewOpen && selectedItem?.mode === "VIDEO_GENERATION"}
+          onClose={() => setIsPreviewOpen(false)}
+          videoUrl={selectedItem?.outputImages[0] ?? null}
+          posterUrl={selectedItem?.outputImage ?? undefined}
+        />
+
+        {/* Image Preview Overlay */}
+        <AnimatePresence>
+          {isPreviewOpen && selectedItem && selectedItem.mode !== "VIDEO_GENERATION" && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-5 cursor-zoom-out"
+              onClick={() => setIsPreviewOpen(false)}
+            >
+              <button 
+                onClick={() => setIsPreviewOpen(false)}
+                className="absolute top-8 right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full border border-white/10 transition-colors z-[160]"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+              
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative w-full max-w-2xl aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Image 
+                  src={selectedItem.outputImage ?? selectedItem.outputImages[0]} 
+                  alt="Preview" 
+                  fill 
+                  className="object-cover"
+                  unoptimized
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </ProtectedRoute>
   );
