@@ -13,6 +13,18 @@ export interface LegacyPromptInputs {
 const negativePrompt =
   "no face change, no body distortion, no slimming, no blur, no low-res, no waxy skin, no broken anatomy, no extra limbs, no fabric distortion, no texture stretching, no lighting mismatch";
 
+function getStyleInstructions(style: string): string {
+  const s = style.toLowerCase();
+  if (s === "sitting") {
+    return "Subject is in a relaxed seated/sitting pose. Ensure the garment drapes naturally over the chair/surface and thighs, following gravity with realistic folds and tension.";
+  }
+  if (s === "outdoor") {
+    return "Setting: High-end outdoor fashion shoot. Lighting: Natural golden hour sunlight with soft lens flares and realistic environmental shadows. Background: Sophisticated street scene or garden with soft bokeh.";
+  }
+  // Default/Natural
+  return "Setting: Professional minimalist studio. Lighting: High-key diffused softbox lighting. Style: Clean, editorial, commercial catalog look.";
+}
+
 export function buildLegacyPrompt(inputs: LegacyPromptInputs): string {
   const {
     mode,
@@ -38,12 +50,12 @@ export function buildLegacyPrompt(inputs: LegacyPromptInputs): string {
       ...(garmentType === "Ready-made"
         ? [
             "Ready-made: directly map the garment with accurate fit, scale, alignment, and perspective.",
-            `Refine using Output Style: ${styleHint}, Output Format: ${viewHint}.`,
+            `Photography Style: ${getStyleInstructions(styleHint)}. Output Format: ${viewHint}.`,
           ]
         : [
             `Fabric: generate garment using Person Type: ${genderHint}${categoryHint ? ` and Clothing Category: ${categoryHint}` : ""}.`,
             "Define realistic material properties (thickness, weight, elasticity, gravity-driven drape), then apply with precise tailoring, seams, and cloth simulation.",
-            `Style using Output Style: ${styleHint}, Output Format: ${viewHint}.`,
+            `Style Direction: ${getStyleInstructions(styleHint)}. Output Format: ${viewHint}.`,
           ]),
       "Rendering Fidelity: high photorealism, accurate fabric texture and color, patterns, stitching, seams; natural folds and draping; correct fit and perspective.",
       "Photography Direction: professional catalog pose (S-curve or 3/4 turn); clean studio or selected environment; soft neutral diffused lighting.",

@@ -525,7 +525,6 @@ export const VirtualTryOnView = () => {
                         label={s}
                         selected={outputStyle === s}
                         onClick={() => {
-                          if (!canSelectStyle) return;
                           setOutputStyle(s);
                           setFormErrors((prev) => ({ ...prev, style: undefined }));
                         }}
