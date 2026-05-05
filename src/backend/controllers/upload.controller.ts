@@ -7,7 +7,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { env } from "@/shared/config/env";
 
 function hasS3Config() {
-  return Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_REGION && env.AWS_S3_BUCKET_NAME);
+  return Boolean(env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_REGION && env.S3_BUCKET_NAME);
 }
 
 async function uploadToS3(buffer: Buffer, userId: string, fileName: string, contentType: string) {
@@ -24,7 +24,7 @@ async function uploadToS3(buffer: Buffer, userId: string, fileName: string, cont
   await s3Client.send(command);
 
   // Construct the S3 URL (assuming standard S3 URL structure)
-  return `https://${S3_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+  return `https://${S3_BUCKET_NAME}.s3.${env.S3_REGION}.amazonaws.com/${key}`;
 }
 
 function normalizeUploadError(error: unknown): string {
@@ -62,7 +62,7 @@ export const UploadController = {
         return NextResponse.json(
           {
             success: false,
-            error: "AWS S3 is not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, and AWS_S3_BUCKET_NAME in .env.",
+            error: "AWS S3 is not configured. Set S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, and S3_BUCKET_NAME in .env.",
           },
           { status: 500 }
         );
