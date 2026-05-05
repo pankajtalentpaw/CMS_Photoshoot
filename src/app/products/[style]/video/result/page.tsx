@@ -39,7 +39,7 @@ export default function ProductsVideoResultPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative w-full max-w-full sm:max-w-[353px] aspect-[166/250] p-[2px] bg-figma-gradient rounded-[22px] group cursor-pointer mt-10 mb-12 shadow-[0_0_50px_rgba(124,77,255,0.2)]"
+          className="relative w-full max-w-full sm:max-w-[353px] aspect-[9/16] p-[2px] bg-figma-gradient rounded-[22px] group cursor-pointer mt-10 mb-12 shadow-[0_0_50px_rgba(124,77,255,0.2)]"
         >
           <div className="relative w-full h-full bg-[#0A0A0A] rounded-[20px] overflow-hidden">
             {videoUrl ? (

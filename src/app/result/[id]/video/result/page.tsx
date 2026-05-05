@@ -64,7 +64,7 @@ export default function VideoResultPage() {
               className="flex flex-col items-center w-full"
             >
               {/* Video Result Container (Rectangle 27) with Glow Border */}
-              <div className="relative w-full max-w-[353px] aspect-[353/558] p-[2px] rounded-[12px] bg-gradient-to-b from-[#00C2FF] via-[#7C4DFF] to-[#FF00C7] shadow-[0_0_30px_rgba(124,77,255,0.3)] mb-8">
+              <div className="relative w-full max-w-[353px] aspect-[9/16] p-[2px] rounded-[12px] bg-gradient-to-b from-[#00C2FF] via-[#7C4DFF] to-[#FF00C7] shadow-[0_0_30px_rgba(124,77,255,0.3)] mb-8">
                 <div className="relative w-full h-full rounded-[10px] overflow-hidden bg-[#1A1E29] group">
                   <Image 
                     src="/assets/ladies/ethnic-wear/woman-sari-stands-front-large-window.jpg" 

@@ -141,8 +141,15 @@ No adult styling cues · no exaggerated shaping · no adult posing.
       : "";
 
   const notesBlock = aiNotes
-    ? `\n── AI DIRECTOR NOTES ─────────────────────────────────────────────────────\n${aiNotes}\nNotes never override Identity Lock or any extraction lock.\n`
+    ? `\n── AI DIRECTOR NOTES — COMMAND ───────────────────────────────────────────\n${aiNotes}\n`
     : "";
+
+  function getStyleInstructions(style?: string): string {
+    const s = (style || "").toLowerCase();
+    if (s === "sitting") return "Subject is in a relaxed seated/sitting pose. Ensure the garment drapes naturally over the chair/surface and thighs.";
+    if (s === "outdoor") return "Setting: High-end outdoor fashion shoot. Lighting: Natural golden hour sunlight. Background: Sophisticated street scene or garden.";
+    return "Setting: Professional minimalist studio. Lighting: High-key diffused softbox lighting. Style: Clean, editorial catalog look.";
+  }
 
   return `
 [MODE: VIRTUAL TRY-ON] [HUB: APPAREL] [SEGMENT: ${segment}] [WEAR TYPE: ${wearType}] [PRODUCT: ${productType}]
@@ -156,9 +163,13 @@ Hair · makeup · accessories → unchanged unless part of PRODUCT_IMAGE.
 Output must appear as a real photograph of the same person in the new garment.
 
 ── IDENTITY CONSTRAINTS ───────────────────────────────────────────────────
+${notesBlock}
 ${VTON_IDENTITY_LOCK}
 ${kidsBlock ? `\n${kidsBlock}\n` : ""}
 ${typeIsolation}
+
+── PHOTOGRAPHY STYLE ──────────────────────────────────────────────────────
+${getStyleInstructions(inputs.outputStyle)}
 
 ${VTON_GARMENT_EXTRACTION}
 
@@ -167,7 +178,7 @@ ${VTON_FABRIC_PHYSICS}
 ${drapingRules}
 
 ${VTON_CLOTH_PHYSICS}
-${viewsBlock}${notesBlock}
+${viewsBlock}
 ── NEGATIVE PROMPT — STRICT ENFORCEMENT ───────────────────────────────────
 ${VTON_NEGATIVE_PROMPT}
 --no category mixing, no blouse gap, no embroidery averaging,
@@ -226,8 +237,16 @@ export function buildJewelleryVTONPrompt(inputs: JewelleryInputs): string {
       : "";
 
   const notesBlock = aiNotes
-    ? `\n── AI DIRECTOR NOTES ─────────────────────────────────────────────────────\n${aiNotes}\nNotes never override Identity Lock or any extraction lock.\n`
+    ? `\n── AI DIRECTOR NOTES — COMMAND ───────────────────────────────────────────\n${aiNotes}\n`
     : "";
+
+  function getStyleInstructions(style?: string): string {
+    const s = (style || "").toLowerCase();
+    if (s === "sitting") return "Subject is in a relaxed seated/sitting pose. Ensure jewellery interacts naturally with the pose.";
+    if (s === "outdoor") return "Setting: High-end outdoor shoot. Lighting: Natural sunlight with realistic stone sparkle.";
+    return "Setting: Professional studio. Lighting: Clean high-key jewelry lighting.";
+  }
+
 
   return `
 [MODE: VIRTUAL TRY-ON] [HUB: JEWELLERY] [GENRE: ${jewelleryGenre}]${jewelleryStyle ? ` [STYLE: ${jewelleryStyle}]` : ""}
@@ -239,14 +258,18 @@ Only add: the jewellery from PRODUCT_IMAGE at the anatomically correct position.
 Output must appear as a real photograph of the same person wearing the jewellery.
 
 ── IDENTITY CONSTRAINTS ───────────────────────────────────────────────────
+${notesBlock}
 ${VTON_IDENTITY_LOCK}
+
+── PHOTOGRAPHY STYLE ──────────────────────────────────────────────────────
+${getStyleInstructions(inputs.outputStyle)}
 
 ${JEWELLERY_VTON_EXTRACTION}
 
 ${JEWELLERY_VTON_PLACEMENT}
 
 ${JEWELLERY_LIGHTING}
-${viewsBlock}${notesBlock}
+${viewsBlock}
 ── NEGATIVE PROMPT — STRICT ENFORCEMENT ───────────────────────────────────
 ${VTON_NEGATIVE_PROMPT}
 --no floating jewellery, no jewellery on wrong body part,
@@ -324,8 +347,16 @@ export function buildAccessoriesVTONPrompt(inputs: AccessoriesInputs): string {
       : "";
 
   const notesBlock = aiNotes
-    ? `\n── AI DIRECTOR NOTES ─────────────────────────────────────────────────────\n${aiNotes}\nNotes never override Identity Lock or any extraction lock.\n`
+    ? `\n── AI DIRECTOR NOTES — COMMAND ───────────────────────────────────────────\n${aiNotes}\n`
     : "";
+
+  function getStyleInstructions(style?: string): string {
+    const s = (style || "").toLowerCase();
+    if (s === "sitting") return "Subject is in a relaxed seated/sitting pose. Ensure the accessory is held or placed naturally.";
+    if (s === "outdoor") return "Setting: High-end outdoor shoot. Lighting: Natural sunlight matching the environment.";
+    return "Setting: Professional studio. Lighting: Clean editorial accessory lighting.";
+  }
+
 
   return `
 [MODE: VIRTUAL TRY-ON] [HUB: ACCESSORIES] [TYPE: ${accessoryType}]
@@ -337,7 +368,11 @@ Only add or replace: the ${accessoryType} from PRODUCT_IMAGE at the correct posi
 Output must appear as a real photograph of the same person with the accessory.
 
 ── IDENTITY CONSTRAINTS ───────────────────────────────────────────────────
+${notesBlock}
 ${VTON_IDENTITY_LOCK}
+
+── PHOTOGRAPHY STYLE ──────────────────────────────────────────────────────
+${getStyleInstructions(inputs.outputStyle)}
 
 ── ACCESSORY EXTRACTION — ZERO DEVIATION ───────────────────────────────────
 MATERIAL   Exact material physics — leather · canvas · metal · fabric as identified.
@@ -347,7 +382,7 @@ STITCHING  Visible stitching lines · thread colour exact from source.
 SHAPE      Silhouette and proportions exactly as source. No rounding.
 
 ${placementRules}
-${viewsBlock}${notesBlock}
+${viewsBlock}
 ── NEGATIVE PROMPT — STRICT ENFORCEMENT ───────────────────────────────────
 ${VTON_NEGATIVE_PROMPT}
 --no cross-accessory styling, no AI-added hardware not in source,

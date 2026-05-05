@@ -1,5 +1,16 @@
 import mongoose from "mongoose";
 import { env } from "@/shared/config/env";
+import dns from "dns";
+
+// Force Google DNS for SRV resolution to bypass local network restrictions (ECONNREFUSED)
+if (process.env.NODE_ENV === "development") {
+  try {
+    dns.setServers(["8.8.8.8", "8.8.4.4"]);
+    console.log("ℹ️ [MongoDB] DNS servers set to Google Public DNS.");
+  } catch (e) {
+    console.warn("⚠️ [MongoDB] Failed to set custom DNS servers.");
+  }
+}
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
@@ -23,10 +34,9 @@ const cached = globalWithMongoose.mongoose;
 
 const connectOptions: mongoose.ConnectOptions = {
   bufferCommands: false,
-  serverSelectionTimeoutMS: 10000,
-  connectTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
   socketTimeoutMS: 45000,
-  family: 4,
   maxPoolSize: 10,
 };
 
@@ -37,10 +47,13 @@ function isServerSelectionTimeout(error: unknown): boolean {
     return false;
   }
 
+  const msg = error.message.toLowerCase();
   return (
     error.name === "MongoServerSelectionError" ||
-    error.message.toLowerCase().includes("server selection timed out") ||
-    error.message.toLowerCase().includes("whitelisted")
+    msg.includes("server selection timed out") ||
+    msg.includes("whitelisted") ||
+    msg.includes("querysrv") ||
+    msg.includes("econnrefused")
   );
 }
 
@@ -77,7 +90,7 @@ function normalizeConnectionError(error: unknown): Error {
   if (error instanceof Error) {
     if (isServerSelectionTimeout(error)) {
       return new Error(
-        "Database temporarily unavailable. Verify MongoDB Atlas Network Access (IP allow-list) and cluster status, then try again.",
+        "Database connection failed (DNS/SRV Error). If you are on a restricted network, please use the 'Standard Connection String' format from MongoDB Atlas (mongodb://...) instead of the SRV format.",
         { cause: error }
       );
     }
@@ -113,7 +126,8 @@ async function dbConnect() {
           const mongooseInstance = await mongoose.connect(env.MONGODB_URI, connectOptions);
           console.log("✅ [MongoDB] Connected to database on retry.");
           return mongooseInstance;
-        } catch (secondError) {
+        } catch (secondError: any) {
+          console.error("❌ [MongoDB] Connection failed:", secondError?.message || secondError);
           if (directUris.length > 0 && isServerSelectionTimeout(secondError ?? firstError)) {
             console.warn("⚠️ [MongoDB] Replica set discovery failed. Trying direct node fallback...");
 

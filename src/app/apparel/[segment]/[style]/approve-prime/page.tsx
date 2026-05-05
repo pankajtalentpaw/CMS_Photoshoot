@@ -2,18 +2,14 @@
 
 import FlowHeader from "@/frontend/components/FlowHeader";
 import Footer from "@/frontend/components/Footer";
-import LoadingActionButton from "@/frontend/components/LoadingActionButton";
 import ProgressStepper from "@/frontend/components/ProgressStepper";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { 
-  Check, RefreshCcw, Sparkles, MessageSquare, X, AlertCircle, ZoomIn, Maximize,
-  Camera, PlayCircle, Download, Plus, ChevronLeft, ChevronRight
+import {
+  RefreshCcw, Sparkles, X, AlertCircle, ZoomIn, Maximize, Edit
 } from "lucide-react";
-import { saveAs } from "file-saver";
-import JSZip from "jszip";
 import { useProject } from "@/frontend/context/ProjectContext";
 import { useGenerationPolling } from "@/hooks/useGenerationPolling";
 
@@ -25,17 +21,14 @@ export default function ApprovePrimeImagePage() {
 
   const [isApproving, setIsApproving] = useState(false);
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
-  const [showTextBox, setShowTextBox] = useState(false);
   const [customNote, setCustomNote] = useState("");
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [isRegenerateMode, setIsRegenerateMode] = useState(false);
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const { currentProject, updateProject, spendCredits, resetProject } = useProject();
+  const { currentProject, updateProject, spendCredits } = useProject();
   const { status, outputImage, error, generate, reset, jobId } = useGenerationPolling();
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [activeView, setActiveView] = useState(0);
   const [hasBootstrappedGeneration, setHasBootstrappedGeneration] = useState(false);
 
   const isGenerating = status === "submitting" || status === "polling";
@@ -45,15 +38,6 @@ export default function ApprovePrimeImagePage() {
   const feedbackChips = [
     "Better Drape", "Clearer Border", "Premium Studio Look", "Face More Natural", "Better Lighting", "More Catalog-Safe"
   ];
-
-  const chipPrompts: Record<string, string> = {
-    "Better Drape": "Enhancing fabric physics and natural gravitational folds...",
-    "Clearer Border": "Sharpening embroidery edges and contrast markers...",
-    "Premium Studio Look": "Adjusting studio lighting for high-end cinematic luster...",
-    "Face More Natural": "Refining skin texture and realistic symmetric features...",
-    "Better Lighting": "Remapping shadows for balanced 3-point studio lighting...",
-    "More Catalog-Safe": "Increasing textural resolution on fine material patterns..."
-  };
 
   const normalizeModelImageUrl = (value: string | undefined, fallback: string) => {
     if (!value) return fallback;
@@ -168,35 +152,6 @@ export default function ApprovePrimeImagePage() {
     }
   };
 
-  const handleDownloadAll = async () => {
-    if (!displayImage) return;
-    try {
-      setIsDownloading(true);
-      const zip = new JSZip();
-      
-      const urlToFetch = displayImage;
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(urlToFetch)}`;
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error(`Failed to fetch image`);
-      
-      const blob = await response.blob();
-      let ext = "png";
-      if (blob.type === "image/jpeg") ext = "jpg";
-      else if (blob.type === "image/webp") ext = "webp";
-      
-      const filename = `Prime_Result_${Date.now()}.${ext}`;
-      zip.file(filename, blob);
-
-      const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `DigitalAtelier_Result.zip`);
-    } catch (error) {
-      console.error("Error downloading files:", error);
-      alert("Failed to create download pack. Please try again.");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const handleRegenerate = () => {
     reset();
     setIsRegenerateMode(false);
@@ -223,7 +178,7 @@ export default function ApprovePrimeImagePage() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30">
-      <FlowHeader title="Results" />
+      <FlowHeader title="Generated Result" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5 flex flex-col items-center">
         <ProgressStepper currentStep={3} partialStep={false} />
@@ -297,8 +252,14 @@ export default function ApprovePrimeImagePage() {
                       unoptimized
                     />
                     
-                    {/* Overlay Icons for Interaction */}
-                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    {/* Always-visible top-right icons */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2">
+                      <button
+                        onClick={() => setShowFullPreview(true)}
+                        className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/40 transition-all"
+                      >
+                        <ZoomIn className="w-5 h-5 text-white" />
+                      </button>
                       <button
                         onClick={() => setShowFullPreview(true)}
                         className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/40 transition-all"
@@ -321,103 +282,71 @@ export default function ApprovePrimeImagePage() {
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
               </div>
 
-              {/* Side-by-Side Action Buttons */}
-              <div className="w-full max-w-[353px] flex gap-3 mb-6">
-                <button 
-                  onClick={() => handleApprove(`/apparel/${segment}/${style}/views`)}
-                  disabled={isApproving}
-                  className="flex-1 h-[61px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8]"
-                >
-                  <Camera className="w-[18px] h-[18px]" />
-                  <span className="font-roboto font-bold text-[14px]">More Angles</span>
-                </button>
-                <button 
-                  onClick={() => handleApprove(`/apparel/${segment}/${style}/video-style`)}
-                  disabled={isApproving}
-                  className="flex-1 h-[61px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8]"
-                >
-                  <PlayCircle className="w-[18px] h-[18px]" />
-                  <span className="font-roboto font-bold text-[14px]">Create Video</span>
-                </button>
-              </div>
-
-              {/* Main Action Stack */}
-              <div className="w-full max-w-[353px] flex flex-col gap-4">
+              {/* Regenerate | Edit Prompt — side by side */}
+              <div className="w-full max-w-[353px] flex gap-3 mb-4">
                 <button
-                  onClick={handleDownloadAll}
-                  disabled={isDownloading || !displayImage}
-                  className="w-full h-[61px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] rounded-full flex items-center justify-center gap-3 text-white font-bold text-[18px] shadow-[0_10px_40px_rgba(0,163,255,0.3)] active:scale-[0.98] transition-all disabled:opacity-50"
+                  onClick={handleRegenerate}
+                  disabled={isGenerating}
+                  className="flex-1 h-[52px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8] disabled:opacity-50"
                 >
-                  {isDownloading ? (
-                    <RefreshCcw className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Download className="w-5 h-5" />
-                  )}
-                  Download All
+                  <RefreshCcw className="w-[16px] h-[16px]" />
+                  <span className="font-roboto font-bold text-[14px]">Regenerate</span>
                 </button>
-
                 <button
-                  onClick={() => {
-                    resetProject();
-                    router.push("/");
-                  }}
-                  className="w-full h-[61px] bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white font-bold text-[18px] hover:bg-white/10 transition-all active:scale-[0.98]"
-                >
-                  Create New Project
-                </button>
-              </div>
-
-              {/* Refinement Options (Hidden by default, triggered by small button if needed) */}
-              <div className="mt-12 w-full max-w-[353px]">
-                <button 
                   onClick={() => setIsRegenerateMode(!isRegenerateMode)}
-                  className="w-full py-4 text-[#9CA3AF] text-[13px] font-medium flex items-center justify-center gap-2 hover:text-white transition-colors"
+                  className="flex-1 h-[52px] rounded-full border border-white/10 bg-white/5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all text-[#E2E2E8]"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  {isRegenerateMode ? "Hide Refinements" : "Refine AI Result / Edit Prompt"}
+                  <Edit className="w-[16px] h-[16px]" />
+                  <span className="font-roboto font-bold text-[14px]">Edit Prompt</span>
                 </button>
+              </div>
 
-                <AnimatePresence>
-                  {isRegenerateMode && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="pt-6 flex flex-wrap gap-2 mb-6">
-                        {feedbackChips.map(chip => (
-                          <button
-                            key={chip}
-                            onClick={() => toggleChip(chip)}
-                            className={`px-4 py-2 rounded-full border text-[11px] font-medium transition-all ${
-                              selectedChips.includes(chip)
-                                ? "bg-figma-gradient border-transparent text-white shadow-[0_0_15px_rgba(124,77,255,0.4)]"
-                                : "bg-white/5 border-white/10 text-[#C2C6D6] hover:border-white/20"
-                            }`}
-                          >
-                            {chip}
-                          </button>
-                        ))}
-                      </div>
+              {/* Edit Prompt refinement panel */}
+              <AnimatePresence>
+                {isRegenerateMode && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden w-full max-w-[353px] mb-4"
+                  >
+                    <div className="pt-4 flex flex-wrap gap-2 mb-4">
+                      {feedbackChips.map(chip => (
+                        <button
+                          key={chip}
+                          onClick={() => toggleChip(chip)}
+                          className={`px-4 py-2 rounded-full border text-[11px] font-medium transition-all ${
+                            selectedChips.includes(chip)
+                              ? "bg-figma-gradient border-transparent text-white shadow-[0_0_15px_rgba(124,77,255,0.4)]"
+                              : "bg-white/5 border-white/10 text-[#C2C6D6] hover:border-white/20"
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={customNote}
+                      onChange={e => setCustomNote(e.target.value)}
+                      placeholder="E.g. Focus on the golden pallu details..."
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#7C4DFF] outline-none transition-all placeholder:text-[#C2C6D6]/40 resize-none"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                      <textarea
-                        value={customNote}
-                        onChange={e => setCustomNote(e.target.value)}
-                        placeholder="E.g. Focus on the golden pallu details..."
-                        className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#7C4DFF] outline-none transition-all placeholder:text-[#C2C6D6]/40 resize-none mb-6"
-                      />
-
-                      <button
-                        onClick={handleRegenerate}
-                        className="w-full h-14 rounded-full bg-[#7C4DFF] flex items-center justify-center gap-2 hover:bg-[#6A3DE8] transition-all text-white font-bold text-sm mb-10"
-                      >
-                        <RefreshCcw className="w-4 h-4" />
-                        Regenerate Prime Image
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              {/* Approve & Continue — primary CTA */}
+              <div className="w-full max-w-[353px]">
+                <button
+                  onClick={() => handleApprove(`/apparel/${segment}/${style}/views`)}
+                  disabled={isApproving || !displayImage}
+                  className="w-full h-[61px] bg-gradient-to-r from-[#00A3FF] to-[#D100FF] rounded-full flex items-center justify-center text-white font-bold text-[18px] shadow-[0_10px_40px_rgba(0,163,255,0.3)] active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                  {isApproving ? (
+                    <RefreshCcw className="w-5 h-5 animate-spin mr-2" />
+                  ) : null}
+                  Approve &amp; Continue
+                </button>
               </div>
             </motion.div>
           )}

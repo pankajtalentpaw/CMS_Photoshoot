@@ -86,7 +86,7 @@ export default function VideoStylePage() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-black text-white selection:bg-figma-gradient/30">
-      <FlowHeader title="Motion Treatment" />
+      <FlowHeader title="Video Style" />
 
       <main className="w-full flex-1 max-w-full lg:max-w-7xl mx-auto pt-[120px] px-5">
         <ProgressStepper currentStep={10} />
@@ -130,7 +130,7 @@ export default function VideoStylePage() {
             animate={{ opacity: 1, x: 0 }}
             className="font-roboto font-semibold text-[36px] leading-[45px] text-[#E2E2E8] tracking-[-0.9px]"
           >
-            Video Storyboard
+            Select Video Style
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, x: -20 }}
@@ -138,7 +138,7 @@ export default function VideoStylePage() {
             transition={{ delay: 0.1 }}
             className="font-roboto font-normal text-[16px] leading-[19px] text-[#C2C6D6] mt-2"
           >
-            Select a motion preset for your AI animation
+            Choose video animation style
           </motion.p>
         </div>
 

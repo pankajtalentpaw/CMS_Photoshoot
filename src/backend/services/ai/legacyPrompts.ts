@@ -42,6 +42,7 @@ export function buildLegacyPrompt(inputs: LegacyPromptInputs): string {
 
   if (isVirtualTryOn) {
     return [
+      mergedPrompt ? `COMMAND: ${mergedPrompt}` : "",
       "Task: Redress the subject in the model/person image with the clothing from the garment/product image.",
       "Replace only the clothing while strictly preserving the subject's face, identity, expression, body proportions, posture, and skin tone.",
       "Identity Lock (hard constraints): preserve 100% facial identity (pores, freckles, moles, micro-details); maintain exact body shape and pose; no body reshaping; no facial or anatomical alterations.",
@@ -61,7 +62,6 @@ export function buildLegacyPrompt(inputs: LegacyPromptInputs): string {
       "Photography Direction: professional catalog pose (S-curve or 3/4 turn); clean studio or selected environment; soft neutral diffused lighting.",
       "Camera: 85mm prime lens look; aperture f/22 (all-in-focus clarity).",
       "Physics & Grounding: realistic cloth physics, tension lines, strong contact shadows + ambient occlusion; no floating/clipping.",
-      mergedPrompt ? `AI Director Notes (optional): ${mergedPrompt}` : "",
       `Negative Prompt: ${negativePrompt}.`,
     ]
       .filter(Boolean)
