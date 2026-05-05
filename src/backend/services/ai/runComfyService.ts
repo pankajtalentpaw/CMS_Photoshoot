@@ -487,17 +487,9 @@ function buildVideoPayload(params: {
 }) {
   const style = (params.videoStyle || "").toLowerCase();
   
-  // Aspect Ratio Logic from v5.0
-  let width = 720;
-  let height = 1280;
-
-  if (style.includes("turn") || style.includes("turntable") || params.hub === "Products") {
-    width = 1024;
-    height = 1024;
-  } else if (style.includes("reel") || style.includes("walk")) {
-    width = 720;
-    height = 1280;
-  }
+  // Enforced Vertical 9:16 Aspect Ratio (720x1280)
+  const width = 720;
+  const height = 1280;
 
   const payload = {
     image_url: params.initImageUrl,
@@ -740,6 +732,8 @@ export const runComfyService = {
       } else {
         requestPayload = buildModelPayload(params);
       }
+
+      console.log(`🚀 [runComfyService] Triggering workflow: ${url}`);
 
       const response = await fetch(url, {
         method: "POST",
