@@ -27,9 +27,7 @@ const envSchema = z.object({
   RUNCOMFY_VIDEO_MODEL_ID: z.string().optional(),
   RUNCOMFY_VIDEO_DEPLOYMENT_ID: z.string().optional(),
   DISABLE_CREDIT_CHECK: z.string().optional(),
-  CLOUDINARY_CLOUD_NAME: z.string().optional(),
-  CLOUDINARY_API_KEY: z.string().optional(),
-  CLOUDINARY_API_SECRET: z.string().optional(),
+
 
   // AWS S3
   S3_ACCESS_KEY_ID: z.string().optional(),

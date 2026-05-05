@@ -6,7 +6,7 @@ import { generationService } from "@/backend/services/generationService";
 import { geminiService } from "@/backend/services/ai/geminiService";
 import type { PromptInputs } from "@/backend/prompts";
 import { z } from "zod";
-// import cloudinary from "@/shared/config/cloudinary"; // Removed as unused
+
 
 
 async function ensurePublicUrl(url: string | null | undefined, userId: string, baseUrl: string): Promise<string | null> {
