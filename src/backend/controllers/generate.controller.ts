@@ -6,7 +6,8 @@ import { generationService } from "@/backend/services/generationService";
 import { geminiService } from "@/backend/services/ai/geminiService";
 import type { PromptInputs } from "@/backend/prompts";
 import { z } from "zod";
-import cloudinary from "@/shared/config/cloudinary";
+// import cloudinary from "@/shared/config/cloudinary"; // Removed as unused
+
 
 async function ensurePublicUrl(url: string | null | undefined, userId: string, baseUrl: string): Promise<string | null> {
   if (!url) return null;
@@ -174,7 +175,7 @@ export const GenerateController = {
       const protocol = host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https";
       const baseUrl = `${protocol}://${host}`;
 
-      // Auto-resolve localhost/relative URLs to Cloudinary for AI accessibility
+      // Auto-resolve localhost/relative URLs to public URLs for AI accessibility
       // If auto-upload fails, it will at least return an absolute localhost URL to pass validation
       const publicGarmentImage = await ensurePublicUrl(normalizedGarmentImage, userId, baseUrl);
       const publicUserImage = await ensurePublicUrl(normalizedUserImage, userId, baseUrl);

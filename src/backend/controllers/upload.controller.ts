@@ -1,73 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"; // AWS SDK types should be available after npm install
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import cloudinary from "@/shared/config/cloudinary";
+import { s3Client, S3_BUCKET_NAME } from "@/shared/config/s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { env } from "@/shared/config/env";
 
-type CloudinaryLikeError = {
-  message?: string;
-  error?: {
-    message?: string;
-    http_code?: number;
-  };
-  http_code?: number;
-};
-
-function hasCloudinaryConfig() {
-  return Boolean(env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET);
+function hasS3Config() {
+  return Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_REGION && env.AWS_S3_BUCKET_NAME);
 }
 
-function isCloudinaryConfigError(message: string) {
-  return /unknown\s+api[_\s-]?key|must\s+supply\s+api[_\s-]?key|invalid\s+api[_\s-]?key/i.test(message);
-}
-
-async function uploadToCloudinary(buffer: Buffer, userId: string) {
-  const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: `ecom-hub/user-${userId}`,
-        resource_type: "auto",
-      },
-      (error, uploadResult) => {
-        if (error || !uploadResult) {
-          reject(error || new Error("Cloudinary upload failed"));
-          return;
-        }
-        resolve(uploadResult as { secure_url: string });
-      }
-    );
-    uploadStream.end(buffer);
+async function uploadToS3(buffer: Buffer, userId: string, fileName: string, contentType: string) {
+  const key = `ecom-hub/user-${userId}/${Date.now()}-${fileName}`;
+  
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET_NAME,
+    Key: key,
+    Body: buffer,
+    ContentType: contentType,
+    // ACL: "public-read", // Uncomment if your bucket requires explicit public-read ACL
   });
 
-  return result.secure_url;
+  await s3Client.send(command);
+
+  // Construct the S3 URL (assuming standard S3 URL structure)
+  return `https://${S3_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
 }
 
 function normalizeUploadError(error: unknown): string {
-  const toSafeMessage = (raw: string) => {
-    const message = raw.trim();
-    if (/unknown\s+api[_\s-]?key/i.test(message) || /invalid\s+api[_\s-]?key/i.test(message)) {
-      return "Cloudinary credentials are invalid. Please update CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET in .env.";
-    }
-    if (/invalid\s+signature/i.test(message)) {
-      return "Cloudinary signature validation failed. Please verify CLOUDINARY_API_SECRET in .env.";
-    }
-    return message;
-  };
-
-  if (error instanceof Error && error.message) {
-    return toSafeMessage(error.message);
+  if (error instanceof Error) {
+    return error.message;
   }
-
-  if (error && typeof error === "object") {
-    const cloudinaryError = error as CloudinaryLikeError;
-    if (cloudinaryError.error?.message) {
-      return toSafeMessage(cloudinaryError.error.message);
-    }
-    if (cloudinaryError.message) {
-      return toSafeMessage(cloudinaryError.message);
-    }
-  }
-
   return "Upload failed";
 }
 
@@ -95,26 +58,23 @@ export const UploadController = {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      if (!hasCloudinaryConfig()) {
+      if (!hasS3Config()) {
         return NextResponse.json(
           {
             success: false,
-            error: "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env.",
+            error: "AWS S3 is not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, and AWS_S3_BUCKET_NAME in .env.",
           },
           { status: 500 }
         );
       }
 
       try {
-        const cloudinaryUrl = await uploadToCloudinary(buffer, userId);
-        return NextResponse.json({ success: true, url: cloudinaryUrl, provider: "cloudinary" });
-      } catch (cloudinaryError) {
-        const message = normalizeUploadError(cloudinaryError);
-        if (isCloudinaryConfigError(message)) {
-          return NextResponse.json({ success: false, error: message }, { status: 500 });
-        }
-
-        throw cloudinaryError;
+        const s3Url = await uploadToS3(buffer, userId, file.name, file.type);
+        return NextResponse.json({ success: true, url: s3Url, provider: "s3" });
+      } catch (s3Error) {
+        const message = normalizeUploadError(s3Error);
+        console.error("❌ [API/Upload] S3 Error:", message);
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
       }
     } catch (error: unknown) {
       const message = normalizeUploadError(error);
